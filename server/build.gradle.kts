@@ -17,6 +17,7 @@ dependencies {
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 	implementation("tools.jackson.module:jackson-module-kotlin")
+	implementation("tools.jackson.dataformat:jackson-dataformat-yaml")
 	runtimeOnly("org.postgresql:postgresql")
 	runtimeOnly("org.postgresql:r2dbc-postgresql")
 	testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
@@ -30,4 +31,9 @@ dependencies {
 	testImplementation("org.testcontainers:testcontainers-postgresql")
 	testImplementation("org.testcontainers:testcontainers-r2dbc")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// Run from the repository root so that relative paths such as config/prices.example.yaml resolve.
+tasks.bootRun {
+	workingDir = rootDir
 }

@@ -1,8 +1,11 @@
 package tokentollgate.admin
 
+import tokentollgate.db.ModelPrice
 import tokentollgate.db.Project
 import tokentollgate.db.VirtualKey
 import tokentollgate.keys.IssuedKey
+import tokentollgate.pricing.PriceSpec
+import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
@@ -67,6 +70,53 @@ data class IssuedKeyResponse(
 			keyPrefix = issued.key.keyPrefix,
 			createdAt = issued.key.createdAt,
 			key = issued.plaintext,
+		)
+	}
+}
+
+/** Rates are USD per million tokens. [effectiveFrom] is a date (`2026-11-01`, midnight UTC) or an ISO-8601 instant. */
+data class UpsertPriceRequest(
+	val provider: String? = null,
+	val model: String? = null,
+	val inputPerMtok: BigDecimal? = null,
+	val outputPerMtok: BigDecimal? = null,
+	val cachedInputPerMtok: BigDecimal? = null,
+	val currency: String? = null,
+	val effectiveFrom: String? = null,
+) {
+	fun toSpec(): PriceSpec = PriceSpec.of(
+		provider = provider,
+		model = model,
+		inputPerMtok = inputPerMtok,
+		outputPerMtok = outputPerMtok,
+		cachedInputPerMtok = cachedInputPerMtok,
+		currency = currency,
+		effectiveFrom = effectiveFrom,
+	)
+}
+
+data class PriceResponse(
+	val id: UUID,
+	val provider: String,
+	val model: String,
+	val inputPerMtok: BigDecimal,
+	val outputPerMtok: BigDecimal,
+	val cachedInputPerMtok: BigDecimal?,
+	val currency: String,
+	val effectiveFrom: Instant,
+	val createdAt: Instant,
+) {
+	companion object {
+		fun from(price: ModelPrice) = PriceResponse(
+			id = requireNotNull(price.id),
+			provider = price.provider,
+			model = price.model,
+			inputPerMtok = price.inputPerMtok,
+			outputPerMtok = price.outputPerMtok,
+			cachedInputPerMtok = price.cachedInputPerMtok,
+			currency = price.currency,
+			effectiveFrom = price.effectiveFrom,
+			createdAt = price.createdAt,
 		)
 	}
 }
