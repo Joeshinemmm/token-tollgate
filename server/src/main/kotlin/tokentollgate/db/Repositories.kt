@@ -42,6 +42,20 @@ interface VirtualKeyRepository : CoroutineCrudRepository<VirtualKey, UUID> {
 	suspend fun updateLastUsedAt(id: UUID, usedAt: Instant): Int
 }
 
-interface ModelPriceRepository : CoroutineCrudRepository<ModelPrice, UUID>
+interface ModelPriceRepository : CoroutineCrudRepository<ModelPrice, UUID> {
+	suspend fun findByProviderAndModelAndEffectiveFrom(provider: String, model: String, effectiveFrom: Instant): ModelPrice?
+	fun findAllByOrderByProviderAscModelAscEffectiveFromDesc(): Flow<ModelPrice>
+
+	/** The row in force at [at]: the latest `effective_from` that is not after it. Served by the unique index. */
+	@Query(
+		"""
+		SELECT * FROM model_prices
+		WHERE provider = :provider AND model = :model AND effective_from <= :at
+		ORDER BY effective_from DESC
+		LIMIT 1
+		""",
+	)
+	suspend fun findEffective(provider: String, model: String, at: Instant): ModelPrice?
+}
 
 interface UsageRecordRepository : CoroutineCrudRepository<UsageRecord, Long>

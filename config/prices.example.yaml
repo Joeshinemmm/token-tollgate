@@ -1,0 +1,94 @@
+# token-tollgate 예시 요금표. 단위는 100만 토큰당 USD.
+#
+# TOLLGATE_PRICES_FILE로 이 파일을 지정하면 서버가 시작할 때 파일에 있고 DB에 없는
+# (provider, model, effective_from) 행만 추가한다. 이미 있는 행은 바꾸지 않는다.
+# 값은 각 공급처의 공식 가격 페이지를 2026-11-01에 확인해 옮겼다. 가격은 바뀌므로 쓰기 전에 다시 확인하고,
+# 바뀐 가격은 이 파일의 행을 고치지 않고 effective_from이 더 늦은 행을 추가한다(PUT /admin/v1/prices도 같다).
+#
+# 필드
+#   provider               공급처 이름(공급처 설정과 사용 기록의 provider와 같아야 한다)
+#   model                  공급처 API의 모델 id
+#   input_per_mtok         입력 토큰 단가
+#   output_per_mtok        출력 토큰 단가
+#   cached_input_per_mtok  캐시에서 읽은 입력 토큰 단가(선택, 없으면 입력 단가로 계산)
+#   currency               USD만 허용, 생략 가능
+#   effective_from         YYYY-MM-DD(UTC 자정) 또는 ISO-8601 instant
+#
+# 1단계 요금표가 담지 못하는 것
+#   - 긴 프롬프트 구간별 단가(OpenAI는 입력 272K 토큰 초과, Claude Haiku 5.5는 100K 초과): 짧은 구간 단가만 적었다.
+#   - Anthropic 캐시 쓰기 단가(기본 입력의 1.25배 또는 2배): 캐시 쓰기 토큰은 입력 단가로 계산된다.
+#   - Batch, Flex 같은 다른 처리 등급: 표준(Standard) 단가만 적었다.
+
+prices:
+  # OpenAI. 출처 https://developers.openai.com/api/docs/pricing (Standard, short context), 확인일 2026-11-01
+  - provider: openai
+    model: gpt-6-astra
+    input_per_mtok: 10.00
+    cached_input_per_mtok: 1.00
+    output_per_mtok: 50.00
+    effective_from: 2026-11-01
+  - provider: openai
+    model: gpt-6.1-sol
+    input_per_mtok: 2.00
+    cached_input_per_mtok: 0.10
+    output_per_mtok: 10.00
+    effective_from: 2026-11-01
+  - provider: openai
+    model: gpt-6.1-terra
+    input_per_mtok: 1.00
+    cached_input_per_mtok: 0.05
+    output_per_mtok: 5.00
+    effective_from: 2026-11-01
+  - provider: openai
+    model: gpt-6-sol
+    input_per_mtok: 2.00
+    cached_input_per_mtok: 0.20
+    output_per_mtok: 10.00
+    effective_from: 2026-11-01
+  - provider: openai
+    model: gpt-6-luna
+    input_per_mtok: 0.10
+    cached_input_per_mtok: 0.01
+    output_per_mtok: 0.50
+    effective_from: 2026-11-01
+
+  # Anthropic. 출처 https://platform.claude.com/docs/en/about-claude/pricing (단가),
+  # https://platform.claude.com/docs/en/about-claude/models/overview (모델 id), 확인일 2026-11-01
+  - provider: anthropic
+    model: claude-fable-5-1
+    input_per_mtok: 10.00
+    cached_input_per_mtok: 0.25
+    output_per_mtok: 50.00
+    effective_from: 2026-11-01
+  - provider: anthropic
+    model: claude-opus-5-5
+    input_per_mtok: 4.00
+    cached_input_per_mtok: 0.20
+    output_per_mtok: 20.00
+    effective_from: 2026-11-01
+  - provider: anthropic
+    model: claude-sonnet-5-5
+    input_per_mtok: 2.00
+    cached_input_per_mtok: 0.10
+    output_per_mtok: 10.00
+    effective_from: 2026-11-01
+  - provider: anthropic
+    model: claude-haiku-5-5
+    input_per_mtok: 0.10
+    cached_input_per_mtok: 0.01
+    output_per_mtok: 0.50
+    effective_from: 2026-11-01
+
+  # 가짜 공급처(fake-provider). 시험용 단가이며 실제 요금이 아니다.
+  - provider: fake
+    model: fake-small
+    input_per_mtok: 1.00
+    cached_input_per_mtok: 0.10
+    output_per_mtok: 2.00
+    effective_from: 2026-01-01
+  - provider: fake
+    model: fake-large
+    input_per_mtok: 10.00
+    cached_input_per_mtok: 1.00
+    output_per_mtok: 20.00
+    effective_from: 2026-01-01

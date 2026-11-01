@@ -252,3 +252,4 @@ token-tollgate/
 ## 8. 변경 이력
 
 - 2026-11-01, 작업 003: 4.2절의 `auth`(WebFilter 2개)를 Spring Security(WebFlux) 기반으로 바꿨다. 사용자가 Spring Security 사용을 택했고, 핵심 안전 장치(해시 조회, 상수 시간 토큰 비교, 키 값 비노출)는 같다. 상세는 `003-virtual-keys-auth.md`.
+- 2026-11-01, 작업 004: 4.2절의 `pricing` "캐시"는 두지 않았다. 단가 조회는 요청당 한 번, 비동기 기록 경로에서 유니크 인덱스를 타는 점 조회라 측정 전에는 캐시가 상태와 갱신 버그만 더한다. 4.3절의 "테이블이 비어 있을 때만 가져오기"는 "파일에 있고 DB에 없는 (provider, model, effective_from)만 추가"로 바꿨다. 빈 테이블이면 전부 들어가므로 원래 조건을 포함하고, 모델을 추가해 재시작하면 반영되며, 관리 API로 고친 행은 덮어쓰지 않는다. `price_missing` 플래그는 컬럼 대신 `cost IS NULL AND usage_source <> 'none'`으로 파생한다. 기록은 `004-pricing.md`.
