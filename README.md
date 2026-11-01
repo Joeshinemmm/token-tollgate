@@ -20,7 +20,7 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 
 ## 빌드와 테스트
 
-요구 사항: JDK 25, Node.js 26, Docker(통합 테스트용).
+요구 사항: JDK 25, Node.js 26, Docker(통합 테스트와 로컬 PostgreSQL용).
 
 ```bash
 ./gradlew build
@@ -29,6 +29,20 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 ```bash
 cd dashboard && npm install && npm run build
 ```
+
+## 로컬 실행
+
+`.env.example`을 `.env`로 복사하고 값을 채운다. `TOLLGATE_ADMIN_TOKEN`은 16자 이상이어야 하며 없으면 서버가 기동하지 않는다.
+
+```bash
+docker compose up -d postgres
+```
+
+```bash
+./gradlew :server:bootRun
+```
+
+서버는 8080 포트에서 뜬다. 관리 API는 `/admin/v1` 아래에 있고 `Authorization: Bearer <TOLLGATE_ADMIN_TOKEN>`이 필요하다. 가상 키는 `POST /admin/v1/projects/{id}/keys`로 발급하며, 평문은 그 응답에만 한 번 나온다. 클라이언트는 발급받은 키를 `Authorization: Bearer <키>` 또는 `x-api-key: <키>`로 보낸다.
 
 ## 라이선스
 

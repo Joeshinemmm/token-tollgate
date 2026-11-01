@@ -5,14 +5,11 @@ import kotlinx.coroutines.reactive.awaitSingle
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import org.springframework.r2dbc.core.DatabaseClient
-import tokentollgate.TestcontainersConfiguration
+import tokentollgate.IntegrationTest
 import kotlin.test.assertEquals
 
-@SpringBootTest
-@Import(TestcontainersConfiguration::class)
+@IntegrationTest
 class SchemaMigrationTest {
 
 	@Autowired
