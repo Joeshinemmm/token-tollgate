@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: fake-provider
+
+server:
+  port: ${FAKE_PROVIDER_PORT:9090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
