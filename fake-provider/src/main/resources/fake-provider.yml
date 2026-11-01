@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: fake-provider
+
+server:
+  port: ${FAKE_PROVIDER_PORT:9090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+fake:
+  # Leave empty to accept any credentials; set to require this exact key as Bearer token or x-api-key.
+  api-key: ${FAKE_API_KEY:}
+  defaults:
+    input-tokens: ${FAKE_INPUT_TOKENS:100}
+    cached-input-tokens: ${FAKE_CACHED_INPUT_TOKENS:0}
+    output-tokens: ${FAKE_OUTPUT_TOKENS:50}
+    ttft-ms: ${FAKE_TTFT_MS:0}
+    chunk-interval-ms: ${FAKE_CHUNK_INTERVAL_MS:0}
+    error-rate: ${FAKE_ERROR_RATE:0}

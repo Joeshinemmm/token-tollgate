@@ -63,6 +63,39 @@ PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정
 
 관리 API: `GET /admin/v1/prices?provider&model`, `PUT /admin/v1/prices`(같은 provider·model·effectiveFrom이 없으면 201, 있으면 단가를 바꾸고 200), `DELETE /admin/v1/prices/{id}`(사용 기록이 참조하면 409).
 
+## 가짜 공급처
+
+`fake-provider/`는 실제 키 없이 OpenAI Chat Completions(`POST /v1/chat/completions`)와 Anthropic Messages(`POST /v1/messages`)의 일반·스트리밍 응답, 오류, 스트림 끊김을 흉내 내는 별도 서버다. 통합 테스트, compose, 부하 시험의 상류로 쓴다. 응답 형식은 두 공급처의 공식 문서 기준이며 확인한 내용은 [docs/dev-log/005-fake-provider.md](docs/dev-log/005-fake-provider.md)에 있다.
+
+```bash
+./gradlew :fake-provider:bootRun
+```
+
+9090 포트에서 뜬다(`FAKE_PROVIDER_PORT`). 인증은 기본적으로 검사하지 않고, `FAKE_API_KEY`를 주면 그 값을 `Authorization: Bearer` 또는 `x-api-key`로 보내야 한다.
+
+사용량·지연·오류는 요청의 모델명에 지시로 적는다. 형식은 `<모델명>:<키>=<값>,<키>=<값>`이고, 응답의 `model`에는 지시를 뗀 모델명만 들어간다(요금표의 모델명과 맞추기 위해서다).
+
+| 키 | 뜻 | 없을 때 기본값 |
+|---|---|---|
+| `in` | 입력 토큰 총량(캐시에서 읽은 부분 포함) | `FAKE_INPUT_TOKENS` (100) |
+| `cached` | 그중 캐시에서 읽은 토큰 | `FAKE_CACHED_INPUT_TOKENS` (0) |
+| `out` | 출력 토큰 = 생성 단어 수 = 스트림 조각 수 | `FAKE_OUTPUT_TOKENS` (50) |
+| `ttft` | 첫 프레임(일반 응답은 본문) 전 지연 ms | `FAKE_TTFT_MS` (0) |
+| `gap` | 스트림 조각 사이 지연 ms | `FAKE_CHUNK_INTERVAL_MS` (0) |
+| `err` | 즉시 이 상태 코드로 오류 응답(400~599) | 없음 |
+| `abort` | N번째 조각 뒤 종료 프레임 없이 연결을 끊는다 | 없음 |
+| `streamerr` | N번째 조각 뒤 오류 프레임을 보내고 끝낸다(값 없으면 1) | 없음 |
+
+OpenAI 형식에서 `in`은 캐시를 포함한 `prompt_tokens`로, Anthropic 형식에서는 캐시를 뺀 `input_tokens`와 `cache_read_input_tokens`로 나간다. 요청의 `max_tokens`가 `out`보다 작으면 거기서 잘라 `length`/`max_tokens`로 끝낸다. `FAKE_ERROR_RATE`(0~1)를 주면 그 확률로 500을 돌려준다.
+
+```bash
+curl -s http://localhost:9090/v1/chat/completions -H 'Content-Type: application/json' -d '{"model":"fake-small:in=120,cached=20,out=8","messages":[{"role":"user","content":"hi"}]}'
+```
+
+```bash
+curl -N http://localhost:9090/v1/messages -H 'Content-Type: application/json' -d '{"model":"fake-small:out=5,gap=200,abort=3","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"hi"}]}'
+```
+
 ## 라이선스
 
 [MIT](LICENSE)
