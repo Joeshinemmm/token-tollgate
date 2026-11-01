@@ -248,3 +248,7 @@ token-tollgate/
 - 3.1, 3.2의 "확인 필요" 항목은 해당 작업(006, 007) 구현 시 실제 응답으로 재확인하고 dev-log에 적는다.
 - Kotlin 2.3.21 플러그인과 Gradle 9.8.2 조합에서 경고가 나오면 작업 001 dev-log에 기록한다.
 - GitHub 원격 저장소 생성, Ollama 설치, 라이선스 파일 확정은 사용자와 확인 후 진행한다.
+
+## 8. 변경 이력
+
+- 2026-11-01, 작업 003: 4.2절의 `auth`(WebFilter 2개)를 Spring Security(WebFlux) 기반으로 바꿨다. 사용자가 Spring Security 사용을 택했고, 핵심 안전 장치(해시 조회, 상수 시간 토큰 비교, 키 값 비노출)는 같다. 상세는 `003-virtual-keys-auth.md`.

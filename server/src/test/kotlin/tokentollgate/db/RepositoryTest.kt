@@ -4,11 +4,9 @@ import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.r2dbc.core.DatabaseClient
-import tokentollgate.TestcontainersConfiguration
+import tokentollgate.IntegrationTest
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -17,8 +15,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-@SpringBootTest
-@Import(TestcontainersConfiguration::class)
+@IntegrationTest
 class RepositoryTest {
 
 	@Autowired lateinit var projects: ProjectRepository
