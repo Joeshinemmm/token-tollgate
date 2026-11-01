@@ -1,6 +1,22 @@
 spring:
   application:
     name: token-tollgate
+  r2dbc:
+    url: r2dbc:postgresql://${tollgate.db.host}:${tollgate.db.port}/${tollgate.db.name}
+    username: ${tollgate.db.user}
+    password: ${tollgate.db.password}
+  flyway:
+    url: jdbc:postgresql://${tollgate.db.host}:${tollgate.db.port}/${tollgate.db.name}
+    user: ${tollgate.db.user}
+    password: ${tollgate.db.password}
+
+tollgate:
+  db:
+    host: ${TOLLGATE_DB_HOST:localhost}
+    port: ${TOLLGATE_DB_PORT:5432}
+    name: ${POSTGRES_DB:tollgate}
+    user: ${POSTGRES_USER:tollgate}
+    password: ${POSTGRES_PASSWORD:tollgate}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -10,3 +26,6 @@ management:
     web:
       exposure:
         include: health
+  endpoint:
+    health:
+      show-components: always
