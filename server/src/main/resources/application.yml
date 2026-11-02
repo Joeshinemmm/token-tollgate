@@ -13,6 +13,10 @@ spring:
     write:
       # Money columns are numeric(18, 8); write 0.00000015 rather than 1.5E-7.
       write-bigdecimal-as-plain: true
+  http:
+    codecs:
+      # Request bodies and plain upstream responses are buffered to read the model and usage; long prompts exceed the 256KB default.
+      max-in-memory-size: 16MB
 
 tollgate:
   db:
@@ -21,6 +25,32 @@ tollgate:
     name: ${POSTGRES_DB:tollgate}
     user: ${POSTGRES_USER:tollgate}
     password: ${POSTGRES_PASSWORD:tollgate}
+  upstream:
+    connect-timeout: 5s
+    # Time allowed for the upstream response headers; a provider entry may override any of the three.
+    response-timeout: 60s
+    stream-idle-timeout: 60s
+    # Largest plain upstream response the gateway buffers; streams are not buffered.
+    max-in-memory-size: 16MB
+  providers:
+    # Routing: first entry whose pattern matches the requested model, else the entry marked default, else 404.
+    # api-key-env names the environment variable that holds the key; the value itself is never written here.
+    - name: fake
+      type: openai
+      base-url: ${FAKE_PROVIDER_URL:http://localhost:9090}
+      api-key-env: FAKE_API_KEY
+      anonymous: true
+      models: ["fake-*"]
+    - name: ollama
+      type: openai
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      anonymous: true
+      default: true
+    - name: openai
+      type: openai
+      base-url: https://api.openai.com
+      api-key-env: OPENAI_API_KEY
+      models: ["gpt-*", "o1*", "o3*", "o4*"]
 
 server:
   port: ${SERVER_PORT:8080}

@@ -7,6 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class FakeProperties(
 	/** When non-blank, every request under /v1 must present this value as `Authorization: Bearer` or `x-api-key`. */
 	val apiKey: String? = null,
+	/** Path the endpoints are mounted under when embedded elsewhere (the gateway's tests use "/fake"); empty when standalone. */
+	val pathPrefix: String = "",
 	val defaults: Defaults = Defaults(),
 ) {
 	/** Values used when the model name carries no directive for them. */

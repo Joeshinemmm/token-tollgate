@@ -9,8 +9,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.ServerWebInputException
 
-/** Answers malformed requests with a 400 body in the shape of the protocol the client called. */
-@RestControllerAdvice
+/**
+ * Answers malformed requests with a 400 body in the shape of the protocol the client called.
+ * Limited to this module's controllers so that it stays out of the way when mounted inside the gateway's tests.
+ */
+@RestControllerAdvice(basePackages = ["fakeprovider"])
 class FakeErrorHandler {
 
 	@ExceptionHandler(DirectiveException::class)

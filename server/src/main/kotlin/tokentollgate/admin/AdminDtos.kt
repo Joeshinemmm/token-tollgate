@@ -5,6 +5,7 @@ import tokentollgate.db.Project
 import tokentollgate.db.VirtualKey
 import tokentollgate.keys.IssuedKey
 import tokentollgate.pricing.PriceSpec
+import tokentollgate.upstream.Provider
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -124,3 +125,24 @@ data class PriceResponse(
 data class AdminError(val error: AdminErrorBody)
 
 data class AdminErrorBody(val code: String, val message: String)
+
+/** A configured upstream provider as the dashboard sees it: never the key, not even the variable name. */
+data class ProviderResponse(
+	val name: String,
+	val type: String,
+	val baseUrl: String,
+	val enabled: Boolean,
+	val default: Boolean,
+	val models: List<String>,
+) {
+	companion object {
+		fun from(provider: Provider) = ProviderResponse(
+			name = provider.name,
+			type = provider.type.name.lowercase(),
+			baseUrl = provider.baseUrl,
+			enabled = provider.enabled,
+			default = provider.default,
+			models = provider.patterns.map { it.text },
+		)
+	}
+}

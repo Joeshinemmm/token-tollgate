@@ -17,18 +17,19 @@ import tools.jackson.databind.ObjectMapper
 import java.security.MessageDigest
 
 /**
- * Optional provider-key check for paths under /v1: lets gateway tests prove that the virtual key was swapped for the
- * provider key. With no key configured every request passes. The presented value is never logged.
+ * Optional provider-key check for paths under <path-prefix>/v1: lets gateway tests prove that the virtual key was
+ * swapped for the provider key. With no key configured every request passes. The presented value is never logged.
  */
 @Component
 class ApiKeyFilter(properties: FakeProperties, private val mapper: ObjectMapper) : WebFilter {
 
 	private val expected: ByteArray? = properties.requiredApiKey()?.toByteArray(Charsets.UTF_8)
+	private val protectedPrefix: String = properties.pathPrefix.trimEnd('/') + PROTECTED_SEGMENT
 
 	override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
 		val required = expected ?: return chain.filter(exchange)
 		val path = exchange.request.path.value()
-		if (!path.contains(PROTECTED_SEGMENT)) return chain.filter(exchange)
+		if (!path.startsWith(protectedPrefix)) return chain.filter(exchange)
 		val presented = presentedKey(exchange.request.headers)?.toByteArray(Charsets.UTF_8)
 		if (presented != null && MessageDigest.isEqual(required, presented)) return chain.filter(exchange)
 		return reject(exchange, Protocol.of(path))

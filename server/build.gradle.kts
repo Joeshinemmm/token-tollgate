@@ -30,6 +30,8 @@ dependencies {
 	testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 	testImplementation("org.testcontainers:testcontainers-postgresql")
 	testImplementation("org.testcontainers:testcontainers-r2dbc")
+	// The gateway's integration tests mount the fake provider's controllers under /fake as their upstream.
+	testImplementation(project(":fake-provider"))
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

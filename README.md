@@ -47,6 +47,32 @@ PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정
 
 서버는 8080 포트에서 뜬다. 관리 API는 `/admin/v1` 아래에 있고 `Authorization: Bearer <TOLLGATE_ADMIN_TOKEN>`이 필요하다. 가상 키는 `POST /admin/v1/projects/{id}/keys`로 발급하며, 평문은 그 응답에만 한 번 나온다. 클라이언트는 발급받은 키를 `Authorization: Bearer <키>` 또는 `x-api-key: <키>`로 보낸다.
 
+## 중계와 공급처 설정
+
+도구의 base URL을 `http://localhost:8080/v1`로, API 키를 발급받은 가상 키로 바꾸면 `POST /v1/chat/completions`(일반·SSE 스트리밍)가 공급처로 중계된다. 요청마다 `usage_records`에 공급처·모델·입력/출력/캐시 토큰·비용·첫 토큰까지 시간·소요 시간·상태·결과가 1건 기록되고, 응답 헤더 `x-tollgate-request-id`가 그 기록의 `request_id`다. 요청·응답 본문은 저장하지 않는다. 선택 헤더 `X-Tollgate-Tag: <작업 이름>`을 보내면 기록에 태그가 남는다.
+
+```bash
+curl -s http://localhost:8080/v1/chat/completions -H 'Authorization: Bearer <가상 키>' -H 'Content-Type: application/json' -d '{"model":"fake-small:in=120,cached=20,out=8","messages":[{"role":"user","content":"hi"}]}'
+```
+
+스트리밍 요청은 상류에 `stream_options.include_usage`를 켜서 사용량 조각을 읽고, 클라이언트가 그 옵션을 켜지 않았으면 그 조각만 걸러 낸 뒤 나머지 바이트를 그대로 흘려보낸다. 상류 오류는 상태 코드와 본문 그대로 전달한다. 상류 스트림이 끊기거나 멈추면 `data: {"error": {..., "code": "stream_interrupted" | "upstream_timeout"}}` 프레임을 보내고 `[DONE]` 없이 닫는다.
+
+공급처는 `server/src/main/resources/application.yml`의 `tollgate.providers` 목록이다.
+
+| 필드 | 뜻 |
+|---|---|
+| `name` | 기록의 `provider`이자 요금표의 `provider`와 맞출 이름 |
+| `type` | 상류 프로토콜. 지금은 `openai`(OpenAI 호환 전부) |
+| `base-url` | 여기에 `/v1/chat/completions`를 붙여 호출한다 |
+| `api-key-env` | 키를 읽을 환경 변수 **이름**. 값은 어디에도 적지 않는다 |
+| `anonymous` | `true`면 키 없이 활성(가짜 공급처, Ollama) |
+| `default` | 어떤 패턴에도 맞지 않는 모델을 받는 공급처 |
+| `models` | 모델명 패턴(`*` 와일드카드). 설정 순서대로 첫 일치가 이긴다 |
+
+기본 설정은 `fake-*` → 가짜 공급처(`FAKE_PROVIDER_URL`), `gpt-*`·`o1*`·`o3*`·`o4*` → OpenAI(`OPENAI_API_KEY`가 비어 있으면 503 `provider_disabled`), 나머지 → Ollama(`OLLAMA_BASE_URL`, 기본 공급처)다. 타임아웃은 `tollgate.upstream`(연결 5초, 응답 헤더 60초, 스트림 프레임 간격 60초)이며 공급처 항목에서 덮어쓸 수 있다.
+
+`GET /v1/models`(가상 키 필요)는 활성 공급처의 요금표 모델을 OpenAI 형식으로 돌려주고, `GET /admin/v1/providers`(관리자 토큰)는 공급처 목록을 키 없이 보여 준다.
+
 ## 요금표
 
 모델별 단가는 `model_prices` 테이블에 있고 코드에는 없다. 단위는 100만 토큰당 USD이며 입력·출력·캐시 입력(선택) 세 단가를 둔다. `TOLLGATE_PRICES_FILE`에 YAML 파일을 지정하면 시작할 때 파일에 있고 DB에 없는 (provider, model, effective_from) 행만 추가한다. 형식과 예시는 [config/prices.example.yaml](config/prices.example.yaml)에 있고, 값은 각 공급처 공식 가격 페이지를 확인한 날짜와 함께 적혀 있다.
