@@ -58,4 +58,6 @@ interface ModelPriceRepository : CoroutineCrudRepository<ModelPrice, UUID> {
 	suspend fun findEffective(provider: String, model: String, at: Instant): ModelPrice?
 }
 
-interface UsageRecordRepository : CoroutineCrudRepository<UsageRecord, Long>
+interface UsageRecordRepository : CoroutineCrudRepository<UsageRecord, Long> {
+	suspend fun findByRequestId(requestId: UUID): UsageRecord?
+}
