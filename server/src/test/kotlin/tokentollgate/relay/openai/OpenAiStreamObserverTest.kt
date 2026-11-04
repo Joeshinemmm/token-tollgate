@@ -1,6 +1,7 @@
 package tokentollgate.relay.openai
 
 import org.junit.jupiter.api.Test
+import tokentollgate.relay.SseFrame
 import tools.jackson.databind.json.JsonMapper
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

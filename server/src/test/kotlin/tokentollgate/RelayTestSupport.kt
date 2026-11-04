@@ -96,3 +96,12 @@ fun readSse(port: Int, path: String, key: String, body: Map<String, Any?>, takeF
 	}.blockLast(Duration.ofSeconds(30))
 	return SseResult(status, headers, raw.toString(), error)
 }
+
+fun messagesBody(model: String, stream: Boolean = false, maxTokens: Int? = 64): Map<String, Any?> = buildMap {
+	put("model", model)
+	put("messages", listOf(mapOf("role" to "user", "content" to "hello")))
+	if (stream) put("stream", true)
+	if (maxTokens != null) put("max_tokens", maxTokens)
+}
+
+fun String.sseEvent(): String? = lines().firstOrNull { it.startsWith("event: ") }?.removePrefix("event: ")

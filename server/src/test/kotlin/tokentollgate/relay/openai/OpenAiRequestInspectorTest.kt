@@ -2,6 +2,7 @@ package tokentollgate.relay.openai
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tokentollgate.relay.InvalidRelayRequestException
 import tools.jackson.databind.json.JsonMapper
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

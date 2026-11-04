@@ -7,11 +7,12 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import tokentollgate.relay.RelayEngine
 import tokentollgate.security.AuthenticatedKey
 
 /** OpenAI-compatible entry point; the gateway chain has already authenticated the virtual key. */
 @RestController
-class OpenAiChatController(private val relay: OpenAiRelay) {
+class OpenAiChatController(private val engine: RelayEngine, private val adapter: OpenAiAdapter) {
 
 	@PostMapping(PATH)
 	fun chatCompletions(
@@ -19,7 +20,7 @@ class OpenAiChatController(private val relay: OpenAiRelay) {
 		@RequestBody(required = false) body: ByteArray?,
 		exchange: ServerWebExchange,
 	): Mono<Void> = mono<Void> {
-		relay.relay(exchange, key, body)
+		engine.relay(adapter, exchange, key, body)
 		null
 	}
 
