@@ -1,20 +1,11 @@
 package tokentollgate.relay.openai
 
 import org.springframework.stereotype.Component
+import tokentollgate.relay.InspectedRequest
+import tokentollgate.relay.InvalidRelayRequestException
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
-
-class InvalidRelayRequestException(message: String, val param: String? = null) : RuntimeException(message)
-
-/** What the gateway needs from a Chat Completions request, plus the body to send upstream. */
-data class InspectedRequest(
-	val model: String,
-	val stream: Boolean,
-	/** Whether the client asked for the usage chunk itself; the upstream request always asks for it when streaming. */
-	val includeUsage: Boolean,
-	val upstreamBody: ByteArray,
-)
 
 /**
  * Reads `model`, `stream` and `stream_options.include_usage` from the request body. For streaming requests that

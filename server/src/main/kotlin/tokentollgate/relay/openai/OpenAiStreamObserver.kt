@@ -1,6 +1,8 @@
 package tokentollgate.relay.openai
 
 import tokentollgate.pricing.TokenUsage
+import tokentollgate.relay.SseFrame
+import tokentollgate.relay.StreamObserver
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
@@ -10,23 +12,22 @@ import tools.jackson.databind.ObjectMapper
  * the moment of the first content, the usage chunk and any error frame, and decides whether the usage chunk is
  * forwarded. Everything else is forwarded untouched, including frames it cannot parse.
  */
-class OpenAiStreamObserver(private val mapper: ObjectMapper, private val forwardUsageChunk: Boolean) {
+class OpenAiStreamObserver(private val mapper: ObjectMapper, private val forwardUsageChunk: Boolean) : StreamObserver {
 
-	var model: String? = null
+	override var model: String? = null
 		private set
-	var usage: TokenUsage? = null
+	override var usage: TokenUsage? = null
 		private set
-	var done: Boolean = false
+	override var done: Boolean = false
 		private set
-	var sawError: Boolean = false
+	override var sawError: Boolean = false
 		private set
-	var errorType: String? = null
+	override var errorType: String? = null
 		private set
-	var firstContentNanos: Long? = null
+	override var firstContentNanos: Long? = null
 		private set
 
-	/** Returns whether [frame] should go to the client. */
-	fun observe(frame: SseFrame): Boolean {
+	override fun observe(frame: SseFrame): Boolean {
 		val data = frame.data ?: return true
 		if (data.trim() == DONE) {
 			done = true

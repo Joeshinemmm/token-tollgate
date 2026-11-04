@@ -1,4 +1,4 @@
-package tokentollgate.relay.openai
+package tokentollgate.relay
 
 import io.netty.handler.timeout.ReadTimeoutException
 import kotlinx.coroutines.CancellationException
@@ -18,23 +18,16 @@ import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tokentollgate.db.Outcome
-import tokentollgate.db.Protocol
 import tokentollgate.db.UsageSource
 import tokentollgate.db.dbNow
 import tokentollgate.gateway.ProtocolErrorWriter
 import tokentollgate.pricing.TokenUsage
-import tokentollgate.relay.GatewayError
-import tokentollgate.relay.HeaderRules
-import tokentollgate.relay.RelayErrors
 import tokentollgate.security.AuthenticatedKey
 import tokentollgate.upstream.Provider
 import tokentollgate.upstream.ProviderRegistry
-import tokentollgate.upstream.ProviderType
 import tokentollgate.upstream.Route
 import tokentollgate.usage.UsageDraft
 import tokentollgate.usage.UsageRecorder
-import tools.jackson.core.JacksonException
-import tools.jackson.databind.ObjectMapper
 import java.net.ConnectException
 import java.net.UnknownHostException
 import java.time.Instant
@@ -43,40 +36,38 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Relays one Chat Completions request to the provider that owns its model. Plain responses are buffered and
- * returned unchanged; streams are forwarded frame by frame while [OpenAiStreamObserver] reads usage on the side.
- * Whatever happens, one usage record is written through [UsageRecorder].
+ * Relays one request to the provider that owns its model, in whatever protocol the [ProtocolAdapter] speaks.
+ * Plain responses are buffered and returned unchanged; streams are forwarded frame by frame while the adapter's
+ * observer reads usage on the side. Whatever happens, one usage record is written through [UsageRecorder].
  */
 @Component
-class OpenAiRelay(
+class RelayEngine(
 	private val registry: ProviderRegistry,
-	private val inspector: OpenAiRequestInspector,
 	private val recorder: UsageRecorder,
 	private val errorWriter: ProtocolErrorWriter,
-	private val mapper: ObjectMapper,
 ) {
 
-	private val log = LoggerFactory.getLogger(OpenAiRelay::class.java)
+	private val log = LoggerFactory.getLogger(RelayEngine::class.java)
 
-	suspend fun relay(exchange: ServerWebExchange, key: AuthenticatedKey, body: ByteArray?) {
+	suspend fun relay(adapter: ProtocolAdapter, exchange: ServerWebExchange, key: AuthenticatedKey, body: ByteArray?) {
 		val requestId = UUID.randomUUID()
 		exchange.response.headers.set(HeaderRules.REQUEST_ID_HEADER, requestId.toString())
 
 		val inspected = try {
-			inspector.inspect(body ?: ByteArray(0))
+			adapter.inspect(body ?: ByteArray(0))
 		} catch (e: InvalidRelayRequestException) {
-			writeError(exchange, RelayErrors.badRequest(e.message ?: "Invalid request", e.param))
+			writeError(adapter, exchange, requestId, RelayErrors.badRequest(e.message ?: "Invalid request", e.param))
 			return
 		}
-		val attempt = Attempt(requestId, key, inspected)
-		val provider = when (val route = registry.route(ProviderType.OPENAI, inspected.model)) {
+		val attempt = Attempt(adapter, requestId, key, inspected)
+		val provider = when (val route = registry.route(adapter.providerType, inspected.model)) {
 			is Route.To -> route.provider
 			is Route.Disabled -> {
-				attempt.fail(exchange, RelayErrors.providerDisabled(route.provider), Outcome.GATEWAY_ERROR, provider = route.provider.name)
+				attempt.refuse(exchange, RelayErrors.providerDisabled(route.provider), provider = route.provider.name)
 				return
 			}
 			Route.NotFound -> {
-				attempt.fail(exchange, RelayErrors.modelNotFound(inspected.model), Outcome.GATEWAY_ERROR)
+				attempt.refuse(exchange, RelayErrors.modelNotFound(inspected.model))
 				return
 			}
 		}
@@ -93,7 +84,7 @@ class OpenAiRelay(
 	}
 
 	private suspend fun callUpstream(exchange: ServerWebExchange, provider: Provider, attempt: Attempt) {
-		upstreamRequest(exchange, provider, attempt.inspected).awaitExchange { upstream ->
+		upstreamRequest(exchange, provider, attempt).awaitExchange { upstream ->
 			val status = upstream.statusCode()
 			val headers = upstream.headers().asHttpHeaders()
 			val bytes = upstream.bodyToMono(ByteArray::class.java).awaitSingleOrNull() ?: ByteArray(0)
@@ -103,7 +94,7 @@ class OpenAiRelay(
 	}
 
 	private suspend fun streamUpstream(exchange: ServerWebExchange, provider: Provider, attempt: Attempt) {
-		upstreamRequest(exchange, provider, attempt.inspected).awaitExchange { upstream ->
+		upstreamRequest(exchange, provider, attempt).awaitExchange { upstream ->
 			val status = upstream.statusCode()
 			val headers = upstream.headers().asHttpHeaders()
 			val contentType = headers.contentType
@@ -119,7 +110,7 @@ class OpenAiRelay(
 			HeaderRules.copyResponseHeaders(headers, response.headers)
 			val factory = response.bufferFactory()
 			val splitter = SseFrameSplitter()
-			val observer = OpenAiStreamObserver(mapper, forwardUsageChunk = attempt.inspected.includeUsage)
+			val observer = attempt.adapter.streamObserver(attempt.inspected)
 			val frames: Flux<Publisher<DataBuffer>> = upstream.bodyToFlux(DataBuffer::class.java)
 				.timeout(provider.settings.streamIdleTimeout)
 				.concatMap { buffer -> Flux.fromIterable(splitter.feed(drain(buffer))) }
@@ -129,7 +120,7 @@ class OpenAiRelay(
 				.onErrorResume { e ->
 					val failure = streamFailure(provider, e)
 					attempt.streamFailure = failure
-					Flux.just(frameOf(failure.error))
+					Flux.just(attempt.adapter.errorFrame(failure.error, attempt.requestId))
 				}
 				.doOnCancel { attempt.cancelled = true }
 				.map { bytes -> Mono.just(factory.wrap(bytes)) }
@@ -138,15 +129,16 @@ class OpenAiRelay(
 		}
 	}
 
-	private fun upstreamRequest(exchange: ServerWebExchange, provider: Provider, inspected: InspectedRequest) =
+	private fun upstreamRequest(exchange: ServerWebExchange, provider: Provider, attempt: Attempt) =
 		registry.client(provider).post()
 			.uri(exchange.request.path.value())
 			.headers { headers ->
 				HeaderRules.copyRequestHeaders(exchange.request.headers, headers)
 				provider.apiKey?.let { headers.setBearerAuth(it) }
+				attempt.adapter.prepareUpstreamHeaders(headers)
 			}
 			.contentType(MediaType.APPLICATION_JSON)
-			.bodyValue(inspected.upstreamBody)
+			.bodyValue(attempt.inspected.upstreamBody)
 
 	private suspend fun writePlain(response: ServerHttpResponse, status: HttpStatusCode, headers: HttpHeaders, bytes: ByteArray) {
 		response.statusCode = status
@@ -154,11 +146,9 @@ class OpenAiRelay(
 		response.writeWith(Mono.just(response.bufferFactory().wrap(bytes))).awaitSingleOrNull()
 	}
 
-	private suspend fun writeError(exchange: ServerWebExchange, error: GatewayError) {
-		errorWriter.writeJson(exchange, error.status, error.openAiBody()).awaitSingleOrNull()
+	private suspend fun writeError(adapter: ProtocolAdapter, exchange: ServerWebExchange, requestId: UUID, error: GatewayError) {
+		errorWriter.writeJson(exchange, error.status, adapter.errorBody(error, requestId)).awaitSingleOrNull()
 	}
-
-	private fun frameOf(error: GatewayError): ByteArray = "data: ${mapper.writeValueAsString(error.openAiBody())}\n\n".toByteArray(Charsets.UTF_8)
 
 	private fun drain(buffer: DataBuffer): ByteArray {
 		val bytes = ByteArray(buffer.readableByteCount())
@@ -182,7 +172,7 @@ class OpenAiRelay(
 	}
 
 	/** Mutable state of one relayed request; [finish] records it exactly once. */
-	private inner class Attempt(val requestId: UUID, val key: AuthenticatedKey, val inspected: InspectedRequest) {
+	private inner class Attempt(val adapter: ProtocolAdapter, val requestId: UUID, val key: AuthenticatedKey, val inspected: InspectedRequest) {
 		val startedAt: Instant = dbNow()
 		private val startNanos = System.nanoTime()
 		private val recorded = AtomicBoolean(false)
@@ -200,29 +190,21 @@ class OpenAiRelay(
 
 		fun plainResponse(status: HttpStatusCode, bytes: ByteArray) {
 			httpStatus = status.value()
-			val node = try {
-				mapper.readTree(bytes)
-			} catch (e: JacksonException) {
-				null
-			}
+			val parsed = adapter.parsePlain(status, bytes)
+			modelServed = parsed.modelServed
 			if (status.is2xxSuccessful) {
 				outcome = Outcome.OK
-				if (node != null && node.isObject) {
-					node.path("model").let { if (it.isString) modelServed = it.stringValue() }
-					usage = OpenAiUsageParser.parse(node.path("usage"))
-					if (usage != null) usageSource = UsageSource.RESPONSE
-				}
+				usage = parsed.usage
+				if (usage != null) usageSource = UsageSource.RESPONSE
 			} else {
 				outcome = Outcome.UPSTREAM_ERROR
-				errorType = node?.path("error")?.path("type")?.let { if (it.isString) it.stringValue() else null } ?: "http_${status.value()}"
+				errorType = parsed.errorType ?: "http_${status.value()}"
 			}
 		}
 
-		fun streamResponse(status: HttpStatusCode, observer: OpenAiStreamObserver) {
+		fun streamResponse(status: HttpStatusCode, observer: StreamObserver) {
 			httpStatus = status.value()
 			modelServed = observer.model
-			usage = observer.usage
-			if (usage != null) usageSource = UsageSource.STREAM
 			ttftMs = observer.firstContentNanos?.let { ((it - startNanos) / 1_000_000).toInt() }
 			val failure = streamFailure
 			when {
@@ -235,7 +217,11 @@ class OpenAiRelay(
 					outcome = Outcome.UPSTREAM_ERROR
 					errorType = observer.errorType ?: "stream_error"
 				}
-				observer.done -> outcome = Outcome.OK
+				observer.done -> {
+					outcome = Outcome.OK
+					usage = observer.usage
+					if (usage != null) usageSource = UsageSource.STREAM
+				}
 				else -> {
 					outcome = Outcome.UPSTREAM_ERROR
 					errorType = "stream_interrupted"
@@ -244,12 +230,12 @@ class OpenAiRelay(
 		}
 
 		/** A request refused before anything went upstream: routing failures. */
-		suspend fun fail(exchange: ServerWebExchange, error: GatewayError, failureOutcome: Outcome, provider: String = "none") {
+		suspend fun refuse(exchange: ServerWebExchange, error: GatewayError, provider: String = "none") {
 			this.provider = provider
 			httpStatus = error.status.value()
-			outcome = failureOutcome
+			outcome = Outcome.GATEWAY_ERROR
 			errorType = error.code
-			writeError(exchange, error)
+			writeError(adapter, exchange, requestId, error)
 			finish()
 		}
 
@@ -270,9 +256,13 @@ class OpenAiRelay(
 				return
 			}
 			httpStatus = error.status.value()
-			outcome = if (error.code == "upstream_timeout") Outcome.TIMEOUT else if (error.code == "gateway_error") Outcome.GATEWAY_ERROR else Outcome.UPSTREAM_ERROR
+			outcome = when (error.code) {
+				"upstream_timeout" -> Outcome.TIMEOUT
+				"gateway_error" -> Outcome.GATEWAY_ERROR
+				else -> Outcome.UPSTREAM_ERROR
+			}
 			errorType = error.code
-			writeError(exchange, error)
+			writeError(adapter, exchange, requestId, error)
 			finish()
 		}
 
@@ -289,7 +279,7 @@ class OpenAiRelay(
 					requestId = requestId,
 					startedAt = startedAt,
 					key = key,
-					protocol = Protocol.OPENAI,
+					protocol = adapter.protocol,
 					provider = provider,
 					modelRequested = inspected.model,
 					modelServed = modelServed,

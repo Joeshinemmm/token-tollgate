@@ -1,4 +1,4 @@
-package tokentollgate.relay.openai
+package tokentollgate.relay
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertContentEquals

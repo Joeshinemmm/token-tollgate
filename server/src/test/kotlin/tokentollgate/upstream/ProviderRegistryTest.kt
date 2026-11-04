@@ -18,8 +18,10 @@ class ProviderRegistryTest {
 		ProviderRegistry(ProviderProperties(configs.toList(), upstream), environment)
 
 	private val fake = ProviderConfig(name = "fake", type = ProviderType.OPENAI, baseUrl = "http://localhost:9090/", anonymous = true, models = listOf("fake-*"))
+	private val fakeAnthropic = fake.copy(type = ProviderType.ANTHROPIC)
 	private val openai = ProviderConfig(name = "openai", type = ProviderType.OPENAI, baseUrl = "https://api.openai.com", apiKeyEnv = "TEST_KEY", models = listOf("gpt-*", "o1*"))
 	private val ollama = ProviderConfig(name = "ollama", type = ProviderType.OPENAI, baseUrl = "http://localhost:11434", anonymous = true, default = true)
+	private val anthropic = ProviderConfig(name = "anthropic", type = ProviderType.ANTHROPIC, baseUrl = "https://api.anthropic.com", apiKeyEnv = "TEST_KEY", default = true, models = listOf("claude-*"))
 	private val unset = ProviderConfig(name = "unset", type = ProviderType.OPENAI, baseUrl = "https://x", apiKeyEnv = "NOT_SET", models = listOf("x-*"))
 
 	@Test
@@ -66,7 +68,22 @@ class ProviderRegistryTest {
 	}
 
 	@Test
-	fun `duplicate names are refused`() {
+	fun `the same name may be registered once per type and routes per type`() {
+		val registry = registry(fake, fakeAnthropic, ollama, anthropic)
+		val viaOpenAi = registry.route(ProviderType.OPENAI, "fake-small") as Route.To
+		val viaAnthropic = registry.route(ProviderType.ANTHROPIC, "fake-small") as Route.To
+		assertEquals("fake", viaOpenAi.provider.name)
+		assertEquals("fake", viaAnthropic.provider.name)
+		assertEquals(ProviderType.OPENAI, viaOpenAi.provider.type)
+		assertEquals(ProviderType.ANTHROPIC, viaAnthropic.provider.type)
+		assertEquals("anthropic", (registry.route(ProviderType.ANTHROPIC, "something-else") as Route.To).provider.name)
+		assertEquals("ollama", (registry.route(ProviderType.OPENAI, "something-else") as Route.To).provider.name)
+		assertEquals(2, registry.providers.count { it.name == "fake" })
+	}
+
+	@Test
+	fun `the same name and type twice is refused`() {
 		assertThrows<IllegalArgumentException> { registry(fake, fake) }
+		registry(fake, fakeAnthropic)
 	}
 }

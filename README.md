@@ -49,27 +49,33 @@ PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정
 
 ## 중계와 공급처 설정
 
-도구의 base URL을 `http://localhost:8080/v1`로, API 키를 발급받은 가상 키로 바꾸면 `POST /v1/chat/completions`(일반·SSE 스트리밍)가 공급처로 중계된다. 요청마다 `usage_records`에 공급처·모델·입력/출력/캐시 토큰·비용·첫 토큰까지 시간·소요 시간·상태·결과가 1건 기록되고, 응답 헤더 `x-tollgate-request-id`가 그 기록의 `request_id`다. 요청·응답 본문은 저장하지 않는다. 선택 헤더 `X-Tollgate-Tag: <작업 이름>`을 보내면 기록에 태그가 남는다.
+도구의 base URL을 `http://localhost:8080/v1`로, API 키를 발급받은 가상 키로 바꾸면 OpenAI 형식 `POST /v1/chat/completions`와 Anthropic 형식 `POST /v1/messages`(둘 다 일반·SSE 스트리밍)가 공급처로 중계된다. 요청마다 `usage_records`에 프로토콜·공급처·모델·입력/출력/캐시 토큰·비용·첫 토큰까지 시간·소요 시간·상태·결과가 1건 기록되고, 응답 헤더 `x-tollgate-request-id`가 그 기록의 `request_id`다. 요청·응답 본문은 저장하지 않는다. 선택 헤더 `X-Tollgate-Tag: <작업 이름>`을 보내면 기록에 태그가 남는다.
 
 ```bash
 curl -s http://localhost:8080/v1/chat/completions -H 'Authorization: Bearer <가상 키>' -H 'Content-Type: application/json' -d '{"model":"fake-small:in=120,cached=20,out=8","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-스트리밍 요청은 상류에 `stream_options.include_usage`를 켜서 사용량 조각을 읽고, 클라이언트가 그 옵션을 켜지 않았으면 그 조각만 걸러 낸 뒤 나머지 바이트를 그대로 흘려보낸다. 상류 오류는 상태 코드와 본문 그대로 전달한다. 상류 스트림이 끊기거나 멈추면 `data: {"error": {..., "code": "stream_interrupted" | "upstream_timeout"}}` 프레임을 보내고 `[DONE]` 없이 닫는다.
+```bash
+curl -s http://localhost:8080/v1/messages -H 'x-api-key: <가상 키>' -H 'anthropic-version: 2023-06-01' -H 'Content-Type: application/json' -d '{"model":"fake-small:in=120,cached=20,out=8","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}'
+```
 
-공급처는 `server/src/main/resources/application.yml`의 `tollgate.providers` 목록이다.
+OpenAI 형식의 스트리밍 요청은 상류에 `stream_options.include_usage`를 켜서 사용량 조각을 읽고, 클라이언트가 그 옵션을 켜지 않았으면 그 조각만 걸러 낸 뒤 나머지 바이트를 그대로 흘려보낸다. Anthropic 형식은 `message_start`와 `message_delta`에 사용량이 들어 있어 본문도 스트림도 손대지 않고 그대로 전달하며, 세 입력 값(`input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`)의 합을 입력 토큰으로, `cache_read_input_tokens`를 캐시 입력 토큰으로 기록한다. 그래서 같은 사용량이면 두 형식의 비용이 같다. `anthropic-version` 헤더는 클라이언트 값을 그대로 전달하고 없으면 `2023-06-01`을 넣는다.
+
+상류 오류는 상태 코드와 본문 그대로 전달한다. 상류 스트림이 끊기거나 멈추면 OpenAI 형식은 `data: {"error": {..., "code": "stream_interrupted" | "upstream_timeout"}}` 프레임을, Anthropic 형식은 `event: error` 이벤트를 보내고 종료 프레임 없이 닫는다.
+
+공급처는 `server/src/main/resources/application.yml`의 `tollgate.providers` 목록이다. 같은 이름을 종류별로 한 번씩 적을 수 있다(가짜 공급처는 두 프로토콜을 모두 말한다).
 
 | 필드 | 뜻 |
 |---|---|
 | `name` | 기록의 `provider`이자 요금표의 `provider`와 맞출 이름 |
-| `type` | 상류 프로토콜. 지금은 `openai`(OpenAI 호환 전부) |
-| `base-url` | 여기에 `/v1/chat/completions`를 붙여 호출한다 |
+| `type` | 상류 프로토콜. `openai`(OpenAI 호환 전부) 또는 `anthropic` |
+| `base-url` | 여기에 `/v1/chat/completions` 또는 `/v1/messages`를 붙여 호출한다 |
 | `api-key-env` | 키를 읽을 환경 변수 **이름**. 값은 어디에도 적지 않는다 |
 | `anonymous` | `true`면 키 없이 활성(가짜 공급처, Ollama) |
-| `default` | 어떤 패턴에도 맞지 않는 모델을 받는 공급처 |
+| `default` | 같은 종류에서 어떤 패턴에도 맞지 않는 모델을 받는 공급처 |
 | `models` | 모델명 패턴(`*` 와일드카드). 설정 순서대로 첫 일치가 이긴다 |
 
-기본 설정은 `fake-*` → 가짜 공급처(`FAKE_PROVIDER_URL`), `gpt-*`·`o1*`·`o3*`·`o4*` → OpenAI(`OPENAI_API_KEY`가 비어 있으면 503 `provider_disabled`), 나머지 → Ollama(`OLLAMA_BASE_URL`, 기본 공급처)다. 타임아웃은 `tollgate.upstream`(연결 5초, 응답 헤더 60초, 스트림 프레임 간격 60초)이며 공급처 항목에서 덮어쓸 수 있다.
+기본 설정은 `fake-*` → 가짜 공급처(`FAKE_PROVIDER_URL`, 두 종류), `gpt-*`·`o1*`·`o3*`·`o4*` → OpenAI(`OPENAI_API_KEY`), `claude-*`와 그 외 Anthropic 형식 요청 → Anthropic(`ANTHROPIC_API_KEY`), 그 외 OpenAI 형식 요청 → Ollama(`OLLAMA_BASE_URL`)다. 키가 비어 있는 공급처로 가는 요청은 503 `provider_disabled`로 거절되며 메시지에 변수 이름이 나온다. 타임아웃은 `tollgate.upstream`(연결 5초, 응답 헤더 60초, 스트림 프레임 간격 60초)이며 공급처 항목에서 덮어쓸 수 있다.
 
 `GET /v1/models`(가상 키 필요)는 활성 공급처의 요금표 모델을 OpenAI 형식으로 돌려주고, `GET /admin/v1/providers`(관리자 토큰)는 공급처 목록을 키 없이 보여 준다.
 

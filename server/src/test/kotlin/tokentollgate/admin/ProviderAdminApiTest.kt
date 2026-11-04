@@ -18,9 +18,9 @@ class ProviderAdminApiTest {
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
-			.jsonPath("$[?(@.name == 'fake')].enabled").isEqualTo(true)
-			.jsonPath("$[?(@.name == 'fake')].type").isEqualTo("openai")
-			.jsonPath("$[?(@.name == 'fake')].models[0]").isEqualTo("fake-*")
+			.jsonPath("$[?(@.name == 'fake' && @.type == 'openai')].enabled").isEqualTo(true)
+			.jsonPath("$[?(@.name == 'fake' && @.type == 'anthropic')].type").isEqualTo("anthropic")
+			.jsonPath("$[?(@.name == 'fake' && @.type == 'openai')].models[0]").isEqualTo("fake-*")
 			.jsonPath("$[?(@.name == 'openai')].enabled").isEqualTo(false)
 			.jsonPath("$[0].apiKey").doesNotExist()
 			.jsonPath("$[0].apiKeyEnv").doesNotExist()

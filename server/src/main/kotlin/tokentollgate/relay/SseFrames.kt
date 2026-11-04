@@ -1,4 +1,4 @@
-package tokentollgate.relay.openai
+package tokentollgate.relay
 
 /** One server-sent event as it arrived: its bytes untouched, plus its lines for inspection. */
 class SseFrame(val raw: ByteArray, val lines: List<String>) {

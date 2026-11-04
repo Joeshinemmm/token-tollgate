@@ -18,7 +18,11 @@ class ModelPattern(val text: String) {
 	fun matches(model: String): Boolean = regex.matches(model)
 }
 
-/** A configured upstream with its key already resolved. [toString] never includes the key. */
+/**
+ * A configured upstream with its key already resolved. One name may be registered once per protocol type (the
+ * fake provider speaks both), so a provider is identified by (name, type) while records and prices use the name.
+ * [toString] never includes the key.
+ */
 class Provider(
 	val name: String,
 	val type: ProviderType,
@@ -34,6 +38,8 @@ class Provider(
 
 	/** Configured model names without wildcards, listed by `GET /v1/models`. */
 	val explicitModels: List<String> get() = patterns.filter { it.isExact }.map { it.text }
+
+	internal val identity: String get() = "$name/${type.name.lowercase()}"
 
 	override fun toString(): String = "Provider(name=$name, type=$type, baseUrl=$baseUrl, enabled=$enabled)"
 }
@@ -77,19 +83,19 @@ class ProviderRegistry(properties: ProviderProperties, environment: Environment)
 	private val clients: Map<String, WebClient>
 
 	init {
-		val duplicate = providers.groupBy { it.name }.filterValues { it.size > 1 }.keys
-		require(duplicate.isEmpty()) { "Duplicate provider names in tollgate.providers: $duplicate" }
-		clients = providers.associate { provider -> provider.name to client(provider.baseUrl, provider.settings) }
+		val duplicate = providers.groupBy { it.identity }.filterValues { it.size > 1 }.keys
+		require(duplicate.isEmpty()) { "Duplicate provider entries in tollgate.providers (same name and type): $duplicate" }
+		clients = providers.associate { provider -> provider.identity to client(provider.baseUrl, provider.settings) }
 		providers.forEach { provider ->
 			if (provider.enabled) {
 				log.info("provider {} enabled: type={} baseUrl={} key={}", provider.name, provider.type, provider.baseUrl, if (provider.apiKey != null) "set" else "none")
 			} else {
-				log.warn("provider {} disabled: environment variable {} is empty", provider.name, provider.apiKeyEnv)
+				log.warn("provider {} ({}) disabled: environment variable {} is empty", provider.name, provider.type, provider.apiKeyEnv)
 			}
 		}
 	}
 
-	/** First provider of [type] whose pattern matches [model], else the default one, else nothing. */
+	/** First provider of [type] whose pattern matches [model], else the default one of that type, else nothing. */
 	fun route(type: ProviderType, model: String): Route {
 		val matched = providers.firstOrNull { it.type == type && it.patterns.any { pattern -> pattern.matches(model) } }
 			?: providers.firstOrNull { it.type == type && it.default }
@@ -97,7 +103,7 @@ class ProviderRegistry(properties: ProviderProperties, environment: Environment)
 		return if (matched.enabled) Route.To(matched) else Route.Disabled(matched)
 	}
 
-	fun client(provider: Provider): WebClient = clients.getValue(provider.name)
+	fun client(provider: Provider): WebClient = clients.getValue(provider.identity)
 
 	fun enabledProviders(): List<Provider> = providers.filter { it.enabled }
 
