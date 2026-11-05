@@ -95,6 +95,19 @@ OpenAI 형식의 스트리밍 요청은 상류에 `stream_options.include_usage`
 
 관리 API: `GET /admin/v1/prices?provider&model`, `PUT /admin/v1/prices`(같은 provider·model·effectiveFrom이 없으면 201, 있으면 단가를 바꾸고 200), `DELETE /admin/v1/prices/{id}`(사용 기록이 참조하면 409).
 
+## 사용량 조회
+
+기록된 요청은 관리 API 두 개로 본다. 둘 다 `Authorization: Bearer <TOLLGATE_ADMIN_TOKEN>`이 필요하고, 두 프로토콜의 기록을 함께 다룬다.
+
+- `GET /admin/v1/usage/summary`: 기간 안의 기록을 `groupBy`(`day`, `project`, `model`, `tag`)로 묶어 요청 수, 성공 수, 입력·캐시·출력 토큰 합, 비용 합, 단가가 없어 비용을 못 계산한 요청 수, 사용량 자체를 모르는 요청 수를 돌려준다. `totals`는 기간 전체, `groups`는 묶음별이다.
+- `GET /admin/v1/usage/records`: 최근 요청 목록. `limit`(기본 50, 최대 200)과 커서 `before`(응답의 `nextBefore`를 그대로 넘김)로 넘겨 본다. 프로젝트 이름과 키 접두사가 함께 나오고 키 평문은 나오지 않는다.
+
+공통 파라미터는 `from`(포함)·`to`(제외)·`tz`·`projectId`·`tag`·`model`·`provider`이고, `records`에는 `outcome` 필터가 더 있다. `from`과 `to`는 `2026-11-04T15:00:00Z` 같은 instant나 `2026-11-05` 같은 날짜이며, 날짜는 `tz`의 자정으로 해석한다. 기본은 최근 7일, 최대 366일이다. 기록은 UTC로 저장되고 `day` 묶음만 `tz`로 계산하므로, 같은 기록이 `tz=UTC`에서는 11월 4일, `tz=Asia/Seoul`에서는 11월 5일로 묶일 수 있다. 비용은 소수 8자리 숫자이고 `null`이 아닌 값만 더한다.
+
+```bash
+curl -s 'http://localhost:8080/admin/v1/usage/summary?from=2026-11-01&to=2026-11-08&groupBy=model&tz=Asia/Seoul' -H 'Authorization: Bearer <관리자 토큰>'
+```
+
 ## 가짜 공급처
 
 `fake-provider/`는 실제 키 없이 OpenAI Chat Completions(`POST /v1/chat/completions`)와 Anthropic Messages(`POST /v1/messages`)의 일반·스트리밍 응답, 오류, 스트림 끊김을 흉내 내는 별도 서버다. 통합 테스트, compose, 부하 시험의 상류로 쓴다. 응답 형식은 두 공급처의 공식 문서 기준이며 확인한 내용은 [docs/dev-log/005-fake-provider.md](docs/dev-log/005-fake-provider.md)에 있다.
