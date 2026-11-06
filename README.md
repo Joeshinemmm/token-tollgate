@@ -108,6 +108,25 @@ OpenAI 형식의 스트리밍 요청은 상류에 `stream_options.include_usage`
 curl -s 'http://localhost:8080/admin/v1/usage/summary?from=2026-11-01&to=2026-11-08&groupBy=model&tz=Asia/Seoul' -H 'Authorization: Bearer <관리자 토큰>'
 ```
 
+## 대시보드
+
+`dashboard/`는 관리 API 위에 올라가는 React 화면이다. 관리자 토큰으로 로그인해 프로젝트와 가상 키를 관리하고 요금표를 고친다. 개요와 요청 목록 화면은 다음 작업(010)에서 더해진다.
+
+```bash
+cd dashboard && npm install && npm run dev
+```
+
+개발 서버는 5173 포트에서 뜨고 `/admin` 요청을 `http://localhost:8080`으로 프록시하므로 서버를 먼저 띄운다. 처음 열면 로그인 화면이 나오고 서버에 준 `TOLLGATE_ADMIN_TOKEN` 값을 넣는다. 토큰은 그 탭의 `sessionStorage`에만 있어 탭을 닫으면 사라지고, 서버가 401을 돌려주면 자동으로 로그아웃된다.
+
+- 키 관리(`#/keys`): 프로젝트 생성·이름 변경·보관, 프로젝트별 키 목록(접두사, 생성 시각, 마지막 사용, 상태), 키 발급(평문은 발급 직후 한 번만 보이고 복사 버튼이 있다), 폐기.
+- 요금표(`#/prices`): 공급처·모델별 최신 단가와 이력, 단가 추가(같은 공급처·모델·적용 시작으로 저장하면 그 행의 단가를 교체한다), 삭제(사용 기록이 참조하는 행은 서버가 거절한다).
+
+검사와 빌드는 다음과 같다. 테스트는 `fetch`를 흉내 내므로 서버 없이 돈다. 빌드 산출물은 `dashboard/dist`에 생기며 배포 구성(011)에서 nginx가 서빙한다.
+
+```bash
+cd dashboard && npm run lint && npm test && npm run build
+```
+
 ## 가짜 공급처
 
 `fake-provider/`는 실제 키 없이 OpenAI Chat Completions(`POST /v1/chat/completions`)와 Anthropic Messages(`POST /v1/messages`)의 일반·스트리밍 응답, 오류, 스트림 끊김을 흉내 내는 별도 서버다. 통합 테스트, compose, 부하 시험의 상류로 쓴다. 응답 형식은 두 공급처의 공식 문서 기준이며 확인한 내용은 [docs/dev-log/005-fake-provider.md](docs/dev-log/005-fake-provider.md)에 있다.
