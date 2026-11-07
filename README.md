@@ -1,5 +1,7 @@
 # token-tollgate
 
+[![CI](https://github.com/Joeshinemmm/token-tollgate/actions/workflows/ci.yml/badge.svg)](https://github.com/Joeshinemmm/token-tollgate/actions/workflows/ci.yml)
+
 AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별 비용을 보고, 예산을 넘지 않게 막고, 공급처 장애에도 멈추지 않게 하는 개인·소규모 팀용 LLM 게이트웨이.
 
 기존 도구는 base URL과 키만 바꿔 연결한다. OpenAI 호환 `POST /v1/chat/completions`와 Anthropic 호환 `POST /v1/messages`(일반·SSE 스트리밍)를 제공하고, 지나가는 모든 호출의 토큰·비용·지연시간을 기록한다.
@@ -8,7 +10,7 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 
 ## 상태
 
-1단계(바로 쓸 수 있는 최소 기능) 진행 중. 계획은 [docs/dev-log/000-phase1-plan.md](docs/dev-log/000-phase1-plan.md).
+1단계(바로 쓸 수 있는 최소 기능) 진행 중. 계획은 [docs/dev-log/000-phase1-plan.md](docs/dev-log/000-phase1-plan.md). 완료 기준 다섯 가지 중 `docker compose up` 한 번 기동(1), 두 형식의 일반·스트리밍 중계와 기록(2), 대시보드의 키 관리와 비용 조회(4), 테스트와 dev-log(5)가 되어 있고, 실제 도구 연결 확인(3)은 작업 012에서 한다.
 
 ## 구성
 
@@ -18,6 +20,8 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 | `fake-provider/` | 지연·오류·토큰 사용량을 설정으로 흉내 내는 시험용 공급처 |
 | `dashboard/` | React + TypeScript + Vite 대시보드 |
 | `config/` | 예시 요금표 등 실행 시 읽는 설정 파일 |
+| `scripts/` | compose 스택을 띄워 끝까지 확인하는 스모크 테스트 |
+| `.github/workflows/` | PR마다 서버·대시보드·스모크를 돌리는 CI |
 
 ## 빌드와 테스트
 
@@ -33,7 +37,34 @@ cd dashboard && npm install && npm run build
 
 ## 로컬 실행
 
-`.env.example`을 `.env`로 복사하고 값을 채운다. `.env`는 docker compose가 읽는다. `bootRun`으로 서버를 직접 띄울 때는 Gradle이 `.env`를 읽지 않으므로 같은 값을 셸 환경 변수로 준다. `TOLLGATE_ADMIN_TOKEN`은 16자 이상이어야 하며 없으면 서버가 기동하지 않는다.
+### 한 번에 띄우기 (docker compose)
+
+Docker Desktop이나 Docker Engine + compose v2만 있으면 된다. `.env.example`을 `.env`로 복사해 `TOLLGATE_ADMIN_TOKEN`을 바꾸고(16자 이상) 한 번에 띄운다. 실제 공급처 키가 비어 있어도 가짜 공급처로 전체가 동작한다.
+
+```bash
+cp .env.example .env
+```
+
+```bash
+docker compose up -d --build
+```
+
+처음에는 이미지 셋(서버, 가짜 공급처, 대시보드)을 빌드하느라 몇 분 걸리고, 그다음부터는 캐시로 빨리 뜬다. `docker compose ps`에서 네 서비스가 `healthy`면 준비된 것이다.
+
+| 서비스 | 주소 | 역할 |
+|---|---|---|
+| 대시보드 | `http://localhost:3000` | 관리자 토큰으로 로그인해 키 발급과 사용량 조회. nginx가 `/admin/`과 `/v1/`을 서버로 넘기므로 이 포트 하나만 열어도 된다 |
+| 서버 | `http://localhost:8080` | `/v1/...` 중계, `/admin/v1/...` 관리 API, `/actuator/health` |
+| 가짜 공급처 | `http://localhost:9090` | 시험용 상류. 지시가 붙은 모델명으로 토큰·지연·오류를 흉내 낸다 |
+| PostgreSQL | `localhost:5432` | 기록 저장. 볼륨 `pgdata`에 남는다 |
+
+포트는 `.env`의 `SERVER_PORT`·`DASHBOARD_PORT`·`FAKE_PROVIDER_PORT`·`POSTGRES_PORT`로 바꾼다. 로컬 Ollama는 컨테이너에서 `host.docker.internal:11434`로 찾는다. 멈출 때는 `docker compose down`, 데이터까지 지울 때는 `docker compose down -v`다.
+
+도구는 base URL을 `http://localhost:8080/v1`(또는 `http://localhost:3000/v1`)로, API 키를 대시보드에서 발급한 가상 키로 바꾸면 된다. OpenAI SDK는 `OPENAI_BASE_URL=http://localhost:8080/v1`과 `OPENAI_API_KEY=<가상 키>`, Anthropic SDK는 `ANTHROPIC_BASE_URL=http://localhost:8080`과 `ANTHROPIC_API_KEY=<가상 키>`를 주면 된다. 요청 형식과 기록 내용은 아래 "중계와 공급처 설정"에 있다.
+
+### 개발 모드 (bootRun + Vite)
+
+서버와 대시보드를 소스에서 바로 띄울 때는 compose로 PostgreSQL만 올린다. `bootRun`은 Gradle이 `.env`를 읽지 않으므로 같은 값을 셸 환경 변수로 준다. `TOLLGATE_ADMIN_TOKEN`은 16자 이상이어야 하며 없으면 서버가 기동하지 않는다.
 
 ```bash
 docker compose up -d postgres
@@ -43,7 +74,7 @@ docker compose up -d postgres
 TOLLGATE_ADMIN_TOKEN=<16자 이상 토큰> TOLLGATE_PRICES_FILE=config/prices.example.yaml ./gradlew :server:bootRun
 ```
 
-PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정한 뒤 `./gradlew :server:bootRun`을 실행한다. `bootRun`의 작업 디렉터리는 저장소 루트이므로 `config/...` 같은 상대 경로를 그대로 쓸 수 있다.
+PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정한 뒤 `./gradlew :server:bootRun`을 실행한다. `bootRun`의 작업 디렉터리는 저장소 루트이므로 `config/...` 같은 상대 경로를 그대로 쓸 수 있다. 대시보드는 아래 "대시보드" 절의 `npm run dev`로 띄운다.
 
 서버는 8080 포트에서 뜬다. 관리 API는 `/admin/v1` 아래에 있고 `Authorization: Bearer <TOLLGATE_ADMIN_TOKEN>`이 필요하다. 가상 키는 `POST /admin/v1/projects/{id}/keys`로 발급하며, 평문은 그 응답에만 한 번 나온다. 클라이언트는 발급받은 키를 `Authorization: Bearer <키>` 또는 `x-api-key: <키>`로 보낸다.
 
@@ -161,6 +192,16 @@ curl -s http://localhost:9090/v1/chat/completions -H 'Content-Type: application/
 ```bash
 curl -N http://localhost:9090/v1/messages -H 'Content-Type: application/json' -d '{"model":"fake-small:out=5,gap=200,abort=3","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"hi"}]}'
 ```
+
+## 스모크 테스트와 CI
+
+`scripts/smoke.sh`는 compose 스택을 올리고 네 서비스의 상태를 확인한 뒤, 프로젝트와 키를 만들어 OpenAI·Anthropic 형식 × 일반·스트리밍 네 번과 nginx 경유 한 번을 호출하고, 다섯 요청이 모두 비용과 함께 기록됐는지 관리 API로 확인한다. 단계마다 `PASS`/`FAIL`을 찍고 하나라도 실패하면 0이 아닌 값으로 끝난다. 컨테이너와 데이터는 그대로 두며, `SMOKE_DOWN=1`을 주면 끝에 `docker compose down -v`까지 한다. Windows에서는 Git Bash로 실행한다.
+
+```bash
+bash scripts/smoke.sh
+```
+
+GitHub Actions(`.github/workflows/ci.yml`)는 PR과 `main` push마다 서버 빌드와 테스트(Testcontainers PostgreSQL 포함), 대시보드 lint·테스트·빌드, compose 기동 + 스모크 테스트를 각각 돌린다. 이미지를 레지스트리에 올리거나 배포하지는 않는다.
 
 ## 라이선스
 

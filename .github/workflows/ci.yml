@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.2.0
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v6.4.1
+      # Integration tests start PostgreSQL through Testcontainers; the runner has Docker.
+      - run: ./gradlew build --no-daemon
+      - if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: test-reports
+          path: |
+            server/build/reports/tests
+            fake-provider/build/reports/tests
+          if-no-files-found: ignore
+
+  dashboard:
+    name: Dashboard lint, tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  smoke:
+    name: Compose stack and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: cp .env.example .env
+      - run: bash scripts/smoke.sh
+        env:
+          SMOKE_DOWN: "1"
+      - if: failure()
+        run: docker compose logs --tail 100
