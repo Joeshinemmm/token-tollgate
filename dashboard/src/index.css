@@ -11,6 +11,8 @@
   --line-strong: #aeb8b1;
 
   --accent: #0b6e99;
+  /* The one chart series, validated against the surface (dataviz validate_palette.js): a darker step in dark mode. */
+  --chart-series: #0b6e99;
   --accent-strong: #085577;
   --accent-ink: #ffffff;
   --accent-soft: #e1eff6;
@@ -50,6 +52,7 @@
     --line-strong: #46556a;
 
     --accent: #63b3e4;
+    --chart-series: #3a94c9;
     --accent-strong: #8cc8ec;
     --accent-ink: #0b1a24;
     --accent-soft: #1a2f3d;
@@ -193,9 +196,11 @@ select {
   background: none;
   padding: 0;
   min-height: 0;
+  font: inherit;
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 /* Inputs */
@@ -484,6 +489,7 @@ select {
   border-radius: var(--radius-lg);
   background: var(--surface);
   overflow: hidden;
+  overflow-x: auto;
 }
 
 .panel-head {
@@ -726,4 +732,200 @@ select {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Usage screens: one filter row, four stat tiles, the daily chart, the breakdown table. */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.filter-group .input,
+.filter-group .select {
+  width: auto;
+  min-width: 120px;
+}
+
+.filter-tz {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmented button {
+  border: 0;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--line);
+}
+
+.segmented button[aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.segmented button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* A big standalone number keeps proportional figures; tabular digits are for columns. */
+.stat-value {
+  margin-top: 4px;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.stat-detail {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.stat-warn {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--warn);
+}
+
+.chart {
+  padding: 8px 8px 0;
+}
+
+.chart-note {
+  margin: 0;
+  padding: 0 16px 12px;
+  font-size: 13px;
+}
+
+.chart-tip {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+}
+
+.chart-tip strong {
+  display: block;
+  font-size: 15px;
+}
+
+/* While a refetch is in flight the previous render stays, dimmed: no skeleton, no jump. */
+.is-refreshing {
+  opacity: 0.55;
+  transition: opacity 120ms;
+}
+
+.share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.rank-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.rank-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--chart-series);
+}
+
+.detail-row td {
+  background: var(--surface-2);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.detail-grid dt {
+  color: var(--ink-3);
+}
+
+.detail-grid dd {
+  margin: 0;
+}
+
+.small {
+  font-size: 12px;
+}
+
+/* The request log has many columns: keep each cell on one line and let the panel scroll sideways. */
+.table-wide th,
+.table-wide td {
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-tz {
+    margin-left: 0;
+  }
 }

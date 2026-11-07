@@ -44,3 +44,23 @@ export function todayIsoDate(now: Date = new Date()): string {
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
+/** Milliseconds as "845 ms" below a second and "1.8 s" from there; null → "—". */
+export function formatMs(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined) return '—'
+  if (ms < 1000) return `${ms} ms`
+  return `${(ms / 1000).toFixed(1)} s`
+}
+
+/** The share of [part] in [whole] as "12.3%"; "—" when there is no whole. */
+export function formatPercent(part: number, whole: number): string {
+  if (whole <= 0) return '—'
+  return `${((part / whole) * 100).toFixed(1)}%`
+}
+
+/** A log-style local timestamp with seconds, "2026-11-07 18:35:12", for request rows that must line up. */
+export function formatLogTime(iso: string): string {
+  const date = new Date(iso)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}

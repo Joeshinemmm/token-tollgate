@@ -1,9 +1,31 @@
 import type { Client } from './client'
-import type { IssuedKey, Price, Project, Provider, UpsertPriceInput, VirtualKey } from './types'
+import type {
+  IssuedKey,
+  Price,
+  Project,
+  Provider,
+  UpsertPriceInput,
+  UsageRecordsPage,
+  UsageRecordsParams,
+  UsageSummary,
+  UsageSummaryParams,
+  VirtualKey,
+} from './types'
 
 export interface ProjectPatch {
   name?: string
   archived?: boolean
+}
+
+/** `?a=b&c=d` from the defined, non-empty entries of [params]; empty when there are none. */
+export function queryString(params: Record<string, string | number | boolean | undefined>): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') continue
+    search.set(key, String(value))
+  }
+  const text = search.toString()
+  return text ? `?${text}` : ''
 }
 
 /** One function per admin endpoint; the screens never build URLs themselves. */
@@ -24,6 +46,9 @@ export function createAdminApi(client: Client) {
     /** 201 when the (provider, model, effectiveFrom) row is new, 200 when its rates were replaced. */
     upsertPrice: (input: UpsertPriceInput) => client.put<Price>('/prices', input),
     deletePrice: (id: string) => client.delete(`/prices/${id}`),
+
+    usageSummary: (params: UsageSummaryParams) => client.get<UsageSummary>(`/usage/summary${queryString(params)}`),
+    usageRecords: (params: UsageRecordsParams) => client.get<UsageRecordsPage>(`/usage/records${queryString(params)}`),
   }
 }
 
