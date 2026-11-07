@@ -6,7 +6,7 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 
 기존 도구는 base URL과 키만 바꿔 연결한다. OpenAI 호환 `POST /v1/chat/completions`와 Anthropic 호환 `POST /v1/messages`(일반·SSE 스트리밍)를 제공하고, 지나가는 모든 호출의 토큰·비용·지연시간을 기록한다.
 
-설계 기준은 [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md), 진행 기록은 [docs/dev-log/](docs/dev-log/)에 있다.
+이 저장소는 공부용이다. LLM 게이트웨이를 설계부터 배포까지 혼자 만들어 보며 Kotlin·Spring WebFlux·React와 운영에 필요한 기록·비용 계산을 익히는 것이 목적이고, 실제 서비스 운영을 목표로 하지 않는다. 그래서 결정의 이유와 겪은 문제를 작업 단위로 남긴다. 설계 기준은 [docs/PROJECT_BRIEF.md](docs/PROJECT_BRIEF.md), 진행 기록은 [docs/dev-log/](docs/dev-log/)에 있다.
 
 ## 상태
 
@@ -21,6 +21,7 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 | `dashboard/` | React + TypeScript + Vite 대시보드 |
 | `config/` | 예시 요금표 등 실행 시 읽는 설정 파일 |
 | `scripts/` | compose 스택을 띄워 끝까지 확인하는 스모크 테스트 |
+| `examples/` | IntelliJ·VS Code에서 손으로 보내 보는 `.http` 요청 모음 |
 | `.github/workflows/` | PR마다 서버·대시보드·스모크를 돌리는 CI |
 
 ## 빌드와 테스트
@@ -61,6 +62,8 @@ docker compose up -d --build
 포트는 `.env`의 `SERVER_PORT`·`DASHBOARD_PORT`·`FAKE_PROVIDER_PORT`·`POSTGRES_PORT`로 바꾼다. 로컬 Ollama는 컨테이너에서 `host.docker.internal:11434`로 찾는다. 멈출 때는 `docker compose down`, 데이터까지 지울 때는 `docker compose down -v`다.
 
 도구는 base URL을 `http://localhost:8080/v1`(또는 `http://localhost:3000/v1`)로, API 키를 대시보드에서 발급한 가상 키로 바꾸면 된다. OpenAI SDK는 `OPENAI_BASE_URL=http://localhost:8080/v1`과 `OPENAI_API_KEY=<가상 키>`, Anthropic SDK는 `ANTHROPIC_BASE_URL=http://localhost:8080`과 `ANTHROPIC_API_KEY=<가상 키>`를 주면 된다. 요청 형식과 기록 내용은 아래 "중계와 공급처 설정"에 있다.
+
+손으로 몇 번 보내 보려면 `examples/requests.http`를 IntelliJ IDEA(내장 HTTP Client)나 VS Code(REST Client 확장)에서 연다. 관리 API, 두 형식의 일반·스트리밍 중계, 가짜 공급처 지시, 사용량 조회 예시가 들어 있다. 토큰과 가상 키는 `examples/http-client.private.env.example.json`을 `http-client.private.env.json`으로 복사해 넣으며, 이 파일은 git에서 제외된다.
 
 ### 개발 모드 (bootRun + Vite)
 
