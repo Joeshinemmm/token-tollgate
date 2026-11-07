@@ -137,6 +137,7 @@ Boot 계층 추출은 로컬 jar에서 `java -Djarmode=tools -jar server.jar hel
 1. 첫 `docker compose up --wait`에서 대시보드만 `unhealthy`였다. 호스트에서는 3000이 200인데 컨테이너 안의 `wget http://localhost/`가 "Connection refused"였다. busybox `wget`이 `localhost`를 `::1`로 먼저 풀고 nginx는 `listen 80`(IPv4)뿐이라서다. 세 Dockerfile의 헬스체크를 `127.0.0.1`로 바꿨다.
 2. 스모크가 "project or key" 단계에서 빈 값으로 실패했다. Windows의 `python3`가 Microsoft Store 설치 안내 스텁(`WindowsApps/python3`)이라 `command -v`에는 잡히지만 실행하면 안내문만 찍는다. 후보를 실제로 `-c "import json"`으로 실행해 보고 고르게 했다.
 3. 워크플로 YAML(`ci.yml`)은 로컬에서 검사하지 못했다. PyYAML이 없고 `js-yaml`도 대시보드 의존성에 없으며, 일회성 `npx` 실행은 이 세션의 권한에서 막혔다. compose 파일은 `docker compose config`가 검사했고, `ci.yml`의 문법·의미 검증은 PR의 첫 CI 실행에 맡긴다.
+4. PR의 첫 CI 실행에서 서버 잡과 스모크 잡이 모두 `./gradlew: Permission denied`로 실패했다(대시보드 잡은 통과). `gradlew`가 git에 실행 비트 없이(100644) 들어 있었는데, Windows에서는 파일 모드가 적용되지 않고 Docker Desktop도 WSL2 마운트 특성상 실행 가능으로 보여 로컬에서는 드러나지 않았다. `git update-index --chmod=+x gradlew`로 모드를 100755로 올리고, 두 JVM Dockerfile에도 래퍼를 부르기 전에 `chmod +x gradlew`를 넣었다. `scripts/smoke.sh`는 처음부터 실행 비트를 올려 두었고 CI는 `bash scripts/smoke.sh`로 불러 비트에 기대지 않는다.
 
 ## 실행한 검증과 결과 (2026-11-08)
 
@@ -150,7 +151,7 @@ Boot 계층 추출은 로컬 jar에서 `java -Djarmode=tools -jar server.jar hel
 
 ## 남은 문제
 
-- CI 세 잡의 실제 소요 시간은 PR의 첫 실행 뒤에 적는다. 스모크 잡은 Gradle 캐시 없이 이미지 셋을 빌드하므로 몇 분 걸릴 것이다.
+- CI 세 잡의 실제 소요 시간은 PR이 녹색이 된 실행을 기준으로 012 dev-log에 적는다(첫 실행은 gradlew 권한 문제로 1분 안에 실패해 재지 못했다). 스모크 잡은 Gradle 캐시 없이 이미지 셋을 빌드하므로 몇 분 걸릴 것이다.
 - JVM 이미지가 400MB 안팎이다. `jlink`로 줄인 런타임이나 의존성 정리는 나중 과제다.
 - `docker compose up --wait`는 compose v2가 필요하다(이 PC는 v5.6.1). 아주 오래된 compose는 `--wait`를 모른다.
 - 재시작 정책·TLS·멀티 아키텍처 빌드는 두지 않았다(명세의 "하지 않는 것").
