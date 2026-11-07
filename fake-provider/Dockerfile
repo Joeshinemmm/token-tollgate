@@ -8,7 +8,8 @@ COPY gradle ./gradle
 COPY server ./server
 COPY fake-provider ./fake-provider
 # A checkout from Windows may lose the execute bit, so set it before running the wrapper.
-RUN --mount=type=cache,target=/root/.gradle \
+# sharing=locked: the server and fake-provider images build in parallel and Gradle cannot share one cache dir at the same time.
+RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     chmod +x gradlew && ./gradlew :fake-provider:bootJar --no-daemon -x test \
     && mkdir -p /out && cp fake-provider/build/libs/*.jar /out/app.jar
 
