@@ -1,0 +1,19 @@
+# The build context is the repository root (compose passes `context: .`), so keep everything the images do not need out of it.
+.git
+.gitattributes
+.github
+.claude
+.idea
+.vscode
+docs
+examples
+**/build
+**/.gradle
+**/.kotlin
+**/node_modules
+dashboard/dist
+.env
+.env.*
+!.env.example
+*.md
+!dashboard/README.md

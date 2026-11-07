@@ -1,0 +1,149 @@
+# token-tollgate에 손으로 요청을 보내는 예시 모음.
+# IntelliJ IDEA의 HTTP Client(요청 왼쪽 ▶)나 VS Code의 REST Client 확장에서 연다.
+#
+# 변수는 같은 폴더의 http-client.env.json(공개 값)과 http-client.private.env.json(토큰·키, git 제외)에서 온다.
+#   1. http-client.private.env.example.json을 http-client.private.env.json으로 복사한다.
+#   2. adminToken에 .env의 TOLLGATE_ADMIN_TOKEN을, virtualKey에 대시보드에서 발급한 가상 키를 넣는다.
+#   3. 환경 "dev"를 고르고 요청을 보낸다.
+# VS Code REST Client는 settings.json의 rest-client.environmentVariables에 같은 이름으로 값을 둔다.
+
+### 상태 확인 (인증 없음)
+GET {{baseUrl}}/actuator/health
+
+### 공급처 목록 (관리자 토큰)
+GET {{baseUrl}}/admin/v1/providers
+Authorization: Bearer {{adminToken}}
+
+### 프로젝트 만들기
+POST {{baseUrl}}/admin/v1/projects
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name": "http-client-test"}
+
+### 프로젝트 목록
+GET {{baseUrl}}/admin/v1/projects?includeArchived=false
+Authorization: Bearer {{adminToken}}
+
+### 가상 키 발급 (응답의 key는 이 응답에만 한 번 나온다. 아래 projectId를 위 응답의 id로 바꾼다)
+POST {{baseUrl}}/admin/v1/projects/{{projectId}}/keys
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name": "http-client"}
+
+### 프로젝트의 키 목록
+GET {{baseUrl}}/admin/v1/keys?projectId={{projectId}}
+Authorization: Bearer {{adminToken}}
+
+### OpenAI 형식, 일반 응답 (가짜 공급처: 지시로 토큰 수를 정한다)
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: http-client
+
+{
+  "model": "fake-small:in=120,cached=20,out=8",
+  "messages": [{"role": "user", "content": "hi"}]
+}
+
+### OpenAI 형식, 스트리밍 (조각 사이 200ms)
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: http-client
+
+{
+  "model": "fake-small:out=5,gap=200",
+  "stream": true,
+  "messages": [{"role": "user", "content": "hi"}]
+}
+
+### OpenAI 형식, 상류 오류 (가짜 공급처가 429로 답한다)
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: http-client
+
+{
+  "model": "fake-small:err=429",
+  "messages": [{"role": "user", "content": "hi"}]
+}
+
+### Anthropic 형식, 일반 응답 (anthropic-version이 없으면 게이트웨이가 2023-06-01을 넣는다)
+POST {{baseUrl}}/v1/messages
+x-api-key: {{virtualKey}}
+anthropic-version: 2023-06-01
+Content-Type: application/json
+X-Tollgate-Tag: http-client
+
+{
+  "model": "fake-small:in=120,cached=20,out=8",
+  "max_tokens": 64,
+  "messages": [{"role": "user", "content": "hi"}]
+}
+
+### Anthropic 형식, 스트리밍
+POST {{baseUrl}}/v1/messages
+x-api-key: {{virtualKey}}
+anthropic-version: 2023-06-01
+Content-Type: application/json
+X-Tollgate-Tag: http-client
+
+{
+  "model": "fake-small:out=5,gap=200",
+  "max_tokens": 64,
+  "stream": true,
+  "messages": [{"role": "user", "content": "hi"}]
+}
+
+### 실제 Anthropic (.env에 ANTHROPIC_API_KEY가 있을 때만. 유료. max_tokens를 넉넉히 두어야 thinking에 다 쓰이지 않는다)
+POST {{baseUrl}}/v1/messages
+x-api-key: {{virtualKey}}
+anthropic-version: 2023-06-01
+Content-Type: application/json
+X-Tollgate-Tag: real-anthropic
+
+{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 256,
+  "messages": [{"role": "user", "content": "한 단어로 인사해."}]
+}
+
+### 모델 목록 (OpenAI 형식, 가상 키)
+GET {{baseUrl}}/v1/models
+Authorization: Bearer {{virtualKey}}
+
+### 사용량 집계: 최근 7일, 모델별, 서울 시간대
+GET {{baseUrl}}/admin/v1/usage/summary?groupBy=model&tz=Asia/Seoul
+Authorization: Bearer {{adminToken}}
+
+### 사용량 집계: 태그별, 이 파일로 보낸 것만
+GET {{baseUrl}}/admin/v1/usage/summary?groupBy=tag&tag=http-client&tz=Asia/Seoul
+Authorization: Bearer {{adminToken}}
+
+### 최근 요청 10건
+GET {{baseUrl}}/admin/v1/usage/records?limit=10&tz=Asia/Seoul
+Authorization: Bearer {{adminToken}}
+
+### 요금표
+GET {{baseUrl}}/admin/v1/prices
+Authorization: Bearer {{adminToken}}
+
+### 단가 추가 또는 교체 (같은 provider·model·effectiveFrom이면 교체)
+PUT {{baseUrl}}/admin/v1/prices
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "provider": "fake",
+  "model": "fake-http",
+  "inputPerMtok": 1.0,
+  "outputPerMtok": 2.0,
+  "cachedInputPerMtok": 0.1,
+  "effectiveFrom": "2026-01-01"
+}
+
+### 대시보드의 nginx를 거쳐 서버로 (compose로 띄웠을 때)
+GET {{dashboardUrl}}/admin/v1/providers
+Authorization: Bearer {{adminToken}}

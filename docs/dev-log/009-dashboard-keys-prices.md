@@ -180,7 +180,7 @@ Docker Desktop·compose PostgreSQL·`bootRun`(관리자 토큰 설정) 뒤 `npm 
 | 로그아웃 | 로그인 화면으로, 알림 없음 |
 | 어두운/밝은 모드, 375px | 두 모드 모두 토큰이 적용됨. 좁은 폭에서 레일이 위로 가고 표는 가로 스크롤 |
 
-화면 캡처(`docs/dev-log/images/009/`): `login-dark.jpg`, `keys-light.jpg`, `issued-key-ticket-dark.jpg`, `prices-validation-dark.jpg`, `prices-delete-409-dark.jpg`. 확인 중 만든 `manual-009` 프로젝트와 폐기된 키는 로컬 DB에 남겨 두었고, `fake-manual-009` 단가 행 둘은 지웠다.
+화면 캡처는 저장소에 두지 않는다. 확인 중 만든 `manual-009` 프로젝트와 폐기된 키는 로컬 DB에 남겨 두었고, `fake-manual-009` 단가 행 둘은 지웠다.
 
 ## 남은 문제
 

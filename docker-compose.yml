@@ -1,3 +1,5 @@
+# One command brings up the whole stack: `cp .env.example .env` then `docker compose up -d --build`.
+# .env holds host-side values (ports, tokens, keys, DB account). Addresses between containers are fixed here.
 services:
   postgres:
     image: postgres:18
@@ -14,6 +16,62 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  fake-provider:
+    build:
+      context: .
+      dockerfile: fake-provider/Dockerfile
+    environment:
+      FAKE_API_KEY: ${FAKE_API_KEY:-}
+      FAKE_INPUT_TOKENS: ${FAKE_INPUT_TOKENS:-100}
+      FAKE_CACHED_INPUT_TOKENS: ${FAKE_CACHED_INPUT_TOKENS:-0}
+      FAKE_OUTPUT_TOKENS: ${FAKE_OUTPUT_TOKENS:-50}
+      FAKE_TTFT_MS: ${FAKE_TTFT_MS:-0}
+      FAKE_CHUNK_INTERVAL_MS: ${FAKE_CHUNK_INTERVAL_MS:-0}
+      FAKE_ERROR_RATE: ${FAKE_ERROR_RATE:-0}
+    ports:
+      - "${FAKE_PROVIDER_PORT:-9090}:9090"
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      TOLLGATE_DB_HOST: postgres
+      TOLLGATE_DB_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-tollgate}
+      POSTGRES_USER: ${POSTGRES_USER:-tollgate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tollgate}
+      TOLLGATE_ADMIN_TOKEN: ${TOLLGATE_ADMIN_TOKEN:-}
+      # Relative to /app, where ./config is mounted; the same value works for bootRun on the host.
+      TOLLGATE_PRICES_FILE: ${TOLLGATE_PRICES_FILE:-config/prices.example.yaml}
+      FAKE_PROVIDER_URL: http://fake-provider:9090
+      FAKE_API_KEY: ${FAKE_API_KEY:-}
+      # Ollama runs on the host, not in compose.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config:/app/config:ro
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      fake-provider:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    ports:
+      - "${DASHBOARD_PORT:-3000}:80"
+    depends_on:
+      server:
+        condition: service_started
 
 volumes:
   pgdata:

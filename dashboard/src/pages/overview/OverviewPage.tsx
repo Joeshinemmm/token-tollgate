@@ -186,8 +186,8 @@ export function OverviewPage() {
       </div>
       <section className={groupsStale ? 'panel is-refreshing' : 'panel'} aria-labelledby="breakdown-heading">
         <div className="panel-head">
-          <h2 id="breakdown-heading">분해</h2>
-          <Segmented label="분해 기준" options={BREAKDOWNS} value={breakdown} onChange={setBreakdown} />
+          <h2 id="breakdown-heading">비용 내역</h2>
+          <Segmented label="내역 기준" options={BREAKDOWNS} value={breakdown} onChange={setBreakdown} />
         </div>
         {groups ? <BreakdownTable groupBy={breakdown} groups={groups.summary.groups} totalCost={groups.summary.totals.cost} onPick={openRequests} /> : <p className="empty">불러오는 중…</p>}
       </section>
