@@ -182,7 +182,7 @@
 | 뒤로 가기 | `range=today&projectId=…`로 돌아오며 프리셋·선택 상자가 함께 복원 |
 | 밝은·어두운 모드, 375px | 두 모드 모두 토큰 적용, 차트 계열색은 모드별로 다름. 좁은 폭에서 필터 줄이 접히고 카드가 2×2 |
 
-화면 캡처(`docs/dev-log/images/010/`): `overview-dark.jpg`, `overview-light.jpg`, `breakdown-models-dark.jpg`, `requests-light.jpg`, `requests-upstream-error-dark.jpg`, `overview-mobile-light.jpg`. 확인 중 만든 프로젝트 둘과 기록 60건은 로컬 DB에 남겨 두었다(012에서 Ollama 기록과 함께 보는 데 쓸 수 있다).
+화면 캡처는 저장소에 두지 않는다. 확인 중 만든 프로젝트 둘과 기록 60건은 로컬 DB에 남겨 두었다(012에서 Ollama 기록과 함께 보는 데 쓸 수 있다).
 
 ## 남은 문제
 
