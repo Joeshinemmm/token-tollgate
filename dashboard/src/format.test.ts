@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatRelative, formatUsd } from './format'
+import { formatDateTime, formatLogTime, formatMs, formatPercent, formatRelative, formatUsd } from './format'
 
 describe('formatUsd', () => {
   it('keeps at least two decimals and drops trailing zeros beyond them', () => {
@@ -21,5 +21,16 @@ describe('dates', () => {
     expect(formatRelative('2026-11-07T11:55:00Z', now)).toBe('5분 전')
     expect(formatRelative('2026-11-07T09:00:00Z', now)).toBe('3시간 전')
     expect(formatRelative('2026-11-05T12:00:00Z', now)).toBe('2일 전')
+  })
+})
+
+describe('durations and shares', () => {
+  it('formats milliseconds and percentages', () => {
+    expect(formatMs(845)).toBe('845 ms')
+    expect(formatMs(1830)).toBe('1.8 s')
+    expect(formatMs(null)).toBe('—')
+    expect(formatPercent(1, 8)).toBe('12.5%')
+    expect(formatPercent(3, 0)).toBe('—')
+    expect(formatLogTime('2026-11-07T01:02:03Z')).toMatch(/^2026-11-0[67] \d{2}:\d{2}:03$/)
   })
 })

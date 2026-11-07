@@ -3,6 +3,8 @@ import { useAuth } from '../auth/AuthContext'
 import { routeHref, type Route } from '../router/useHashRoute'
 
 const NAV: { route: Route; label: string }[] = [
+  { route: 'overview', label: '개요' },
+  { route: 'requests', label: '요청 목록' },
   { route: 'keys', label: '키 관리' },
   { route: 'prices', label: '요금표' },
 ]
