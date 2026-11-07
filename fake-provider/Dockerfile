@@ -7,8 +7,9 @@ COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
 COPY server ./server
 COPY fake-provider ./fake-provider
+# A checkout from Windows may lose the execute bit, so set it before running the wrapper.
 RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew :fake-provider:bootJar --no-daemon -x test \
+    chmod +x gradlew && ./gradlew :fake-provider:bootJar --no-daemon -x test \
     && mkdir -p /out && cp fake-provider/build/libs/*.jar /out/app.jar
 
 FROM eclipse-temurin:25-jre-alpine AS extract

@@ -7,8 +7,9 @@ COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
 COPY server ./server
 COPY fake-provider ./fake-provider
+# A checkout from Windows may lose the execute bit, so set it before running the wrapper.
 RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew :server:bootJar --no-daemon -x test \
+    chmod +x gradlew && ./gradlew :server:bootJar --no-daemon -x test \
     && mkdir -p /out && cp server/build/libs/*.jar /out/app.jar
 
 # Split the fat jar into layers so that a code change does not invalidate the dependency layer.
