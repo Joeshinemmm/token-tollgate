@@ -138,6 +138,7 @@ Boot 계층 추출은 로컬 jar에서 `java -Djarmode=tools -jar server.jar hel
 2. 스모크가 "project or key" 단계에서 빈 값으로 실패했다. Windows의 `python3`가 Microsoft Store 설치 안내 스텁(`WindowsApps/python3`)이라 `command -v`에는 잡히지만 실행하면 안내문만 찍는다. 후보를 실제로 `-c "import json"`으로 실행해 보고 고르게 했다.
 3. 워크플로 YAML(`ci.yml`)은 로컬에서 검사하지 못했다. PyYAML이 없고 `js-yaml`도 대시보드 의존성에 없으며, 일회성 `npx` 실행은 이 세션의 권한에서 막혔다. compose 파일은 `docker compose config`가 검사했고, `ci.yml`의 문법·의미 검증은 PR의 첫 CI 실행에 맡긴다.
 4. PR의 첫 CI 실행에서 서버 잡과 스모크 잡이 모두 `./gradlew: Permission denied`로 실패했다(대시보드 잡은 통과). `gradlew`가 git에 실행 비트 없이(100644) 들어 있었는데, Windows에서는 파일 모드가 적용되지 않고 Docker Desktop도 WSL2 마운트 특성상 실행 가능으로 보여 로컬에서는 드러나지 않았다. `git update-index --chmod=+x gradlew`로 모드를 100755로 올리고, 두 JVM Dockerfile에도 래퍼를 부르기 전에 `chmod +x gradlew`를 넣었다. `scripts/smoke.sh`는 처음부터 실행 비트를 올려 두었고 CI는 `bash scripts/smoke.sh`로 불러 비트에 기대지 않는다.
+5. 병합 뒤 `main`에서 돈 CI의 스모크 잡이 가짜 공급처 이미지 빌드에서 "Gradle could not start your build … Timeout waiting to lock journal cache (/root/.gradle/caches/journal-1). It is currently in use by another process"로 실패했다. compose가 서버와 가짜 공급처 이미지를 병렬로 빌드하는데 두 Dockerfile이 같은 BuildKit 캐시 마운트(`/root/.gradle`)를 기본 `sharing=shared`로 쓰고 있어, 동시에 Gradle이 뜨면 한쪽이 캐시 잠금을 기다리다 60초 제한에 걸린다. PR 실행과 로컬 빌드에서는 타이밍이 비껴가 통과했었다. 두 마운트에 `sharing=locked`를 주어 한 번에 하나만 캐시를 쓰게 했다(Gradle 스테이지가 직렬화되어 첫 빌드는 느려지지만 캐시는 계속 공유한다).
 
 ## 실행한 검증과 결과 (2026-11-08)
 
