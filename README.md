@@ -10,7 +10,7 @@ AI 도구와 에이전트가 쓰는 LLM 호출을 한곳으로 모아, 작업별
 
 ## 상태
 
-1단계(바로 쓸 수 있는 최소 기능) 진행 중. 계획은 [docs/dev-log/000-phase1-plan.md](docs/dev-log/000-phase1-plan.md). 완료 기준 다섯 가지 중 `docker compose up` 한 번 기동(1), 두 형식의 일반·스트리밍 중계와 기록(2), 대시보드의 키 관리와 비용 조회(4), 테스트와 dev-log(5)가 되어 있고, 실제 도구 연결 확인(3)은 작업 012에서 한다.
+1단계(바로 쓸 수 있는 최소 기능) 완료, 2026-11-08. 계획은 [docs/dev-log/000-phase1-plan.md](docs/dev-log/000-phase1-plan.md), 완료 기준 다섯 가지의 대조표와 2단계로 넘기는 문제 목록은 [docs/dev-log/012-ollama-and-phase1-wrapup.md](docs/dev-log/012-ollama-and-phase1-wrapup.md)에 있다. `docker compose up` 한 번 기동, OpenAI·Anthropic 형식의 일반·스트리밍 중계와 요청별 기록, 로컬 Ollama와 OpenAI SDK를 주소·키만 바꿔 연결, 대시보드의 키 관리와 비용 조회, CI에서 도는 테스트까지 되어 있다.
 
 ## 구성
 
@@ -80,6 +80,10 @@ TOLLGATE_ADMIN_TOKEN=<16자 이상 토큰> TOLLGATE_PRICES_FILE=config/prices.ex
 PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정한 뒤 `./gradlew :server:bootRun`을 실행한다. `bootRun`의 작업 디렉터리는 저장소 루트이므로 `config/...` 같은 상대 경로를 그대로 쓸 수 있다. 대시보드는 아래 "대시보드" 절의 `npm run dev`로 띄운다.
 
 서버는 8080 포트에서 뜬다. 관리 API는 `/admin/v1` 아래에 있고 `Authorization: Bearer <TOLLGATE_ADMIN_TOKEN>`이 필요하다. 가상 키는 `POST /admin/v1/projects/{id}/keys`로 발급하며, 평문은 그 응답에만 한 번 나온다. 클라이언트는 발급받은 키를 `Authorization: Bearer <키>` 또는 `x-api-key: <키>`로 보낸다.
+
+### 로컬 Ollama 쓰기
+
+[Ollama](https://ollama.com)를 설치하고 모델을 받으면(`ollama pull qwen3:4b`) 설정을 바꾸지 않고 바로 쓸 수 있다. 어느 패턴에도 맞지 않는 OpenAI 형식 모델명은 기본 공급처 `ollama`로 가며, 개발 모드에서는 `OLLAMA_BASE_URL`(기본 `http://localhost:11434`), compose에서는 `host.docker.internal:11434`로 찾는다. 요청의 `model`에는 Ollama의 모델 이름(`qwen3:4b`)을 그대로 쓴다. 예시 요금표에 `qwen3:4b`와 `qwen3:0.6b`가 단가 0으로 들어 있어 비용이 0으로 기록되고, 다른 모델은 요금표에 0 단가 행을 더하면 된다(없으면 "단가 없음"으로 센다). `examples/openai_sdk_check.py`는 OpenAI 공식 SDK의 base URL과 키만 바꿔 게이트웨이를 거쳐 Ollama 모델을 부르는 예시다. Qwen3처럼 답하기 전에 생각하는 모델은 출력 토큰이 수백 개가 되고, 생각이 끝날 때까지 스트림 조각이 오지 않아 첫 토큰 시간(TTFT)이 길게 기록된다.
 
 ## 중계와 공급처 설정
 
