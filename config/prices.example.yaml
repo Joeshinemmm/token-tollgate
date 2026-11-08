@@ -4,6 +4,7 @@
 # (provider, model, effective_from) 행만 추가한다. 이미 있는 행은 바꾸지 않는다.
 # 값은 각 공급처의 공식 가격 페이지를 2026-11-01에 확인해 옮겼다. 가격은 바뀌므로 쓰기 전에 다시 확인하고,
 # 바뀐 가격은 이 파일의 행을 고치지 않고 effective_from이 더 늦은 행을 추가한다(PUT /admin/v1/prices도 같다).
+# 로컬 Ollama 모델은 API 과금이 없어 0으로 적었다. 다른 로컬 모델은 요금표 화면이나 PUT /admin/v1/prices로 더한다(이름 정확 일치).
 #
 # 필드
 #   provider               공급처 이름(공급처 설정과 사용 기록의 provider와 같아야 한다)
@@ -92,3 +93,17 @@ prices:
     cached_input_per_mtok: 1.00
     output_per_mtok: 20.00
     effective_from: 2026-01-01
+  # 로컬 Ollama(비용 0). 이 PC에 받은 두 모델만 적었고, 다른 모델은 같은 모양으로 더한다. 확인일 2026-11-08.
+  # effective_from은 UTC 자정이므로 오늘 날짜를 넣으면 한국 시간 오전 9시까지는 적용되지 않는다. 넉넉히 앞 날짜를 둔다
+  - provider: ollama
+    model: qwen3:4b
+    input_per_mtok: 0
+    cached_input_per_mtok: 0
+    output_per_mtok: 0
+    effective_from: 2026-11-01
+  - provider: ollama
+    model: qwen3:0.6b
+    input_per_mtok: 0
+    cached_input_per_mtok: 0
+    output_per_mtok: 0
+    effective_from: 2026-11-01
