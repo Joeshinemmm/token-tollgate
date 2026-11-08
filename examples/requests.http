@@ -147,3 +147,26 @@ Content-Type: application/json
 ### 대시보드의 nginx를 거쳐 서버로 (compose로 띄웠을 때)
 GET {{dashboardUrl}}/admin/v1/providers
 Authorization: Bearer {{adminToken}}
+
+### 로컬 Ollama 모델 (패턴에 안 맞는 모델명은 기본 공급처 ollama로 간다. Qwen3는 답 전에 생각하므로 출력 토큰이 많다)
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: ollama
+
+{
+  "model": "qwen3:4b",
+  "messages": [{"role": "user", "content": "Say hello in one word."}]
+}
+
+### 로컬 Ollama 모델, 스트리밍
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: ollama
+
+{
+  "model": "qwen3:0.6b",
+  "stream": true,
+  "messages": [{"role": "user", "content": "Say hello in one word."}]
+}
