@@ -90,7 +90,7 @@ class PriceFileParserTest {
 		// Gradle runs tests with the module directory as the working directory.
 		val specs = PriceFileParser.parse(Path.of("..", "config", "prices.example.yaml"))
 		assertTrue(specs.isNotEmpty())
-		assertEquals(setOf("openai", "anthropic", "fake"), specs.map { it.provider }.toSet())
+		assertEquals(setOf("openai", "anthropic", "fake", "ollama"), specs.map { it.provider }.toSet())
 		val keys = specs.map { Triple(it.provider, it.model, it.effectiveFrom) }
 		assertEquals(keys.size, keys.toSet().size, "no duplicate (provider, model, effective_from)")
 	}

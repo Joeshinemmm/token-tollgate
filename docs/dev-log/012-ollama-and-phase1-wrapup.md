@@ -100,6 +100,7 @@
 1. 첫 SDK 호출 두 건이 공급처 `ollama`로 기록됐지만 비용이 null이었다. 단가 행이 `effective_from: 2026-11-08`(UTC 자정)인데 호출 시각이 UTC로는 11-07 17시라 아직 적용 전이었다. 날짜를 11-01로 당기고, 이미 들어간 11-08 행은 관리 API로 지운 뒤 서버를 재시작해 다시 심었다. 대시보드의 "단가 없음 2건"은 이 두 건이다.
 2. Git Bash 콘솔에서 스크립트의 한글 출력이 깨졌다. `PYTHONUTF8=1`로 돌리면 정상이고, PowerShell·IntelliJ 터미널에서는 문제없다. 스크립트는 그대로 두었다.
 3. bootRun 경로 확인 때 compose의 `server`·`dashboard`를 멈춰야 했다(8080 충돌). 확인 뒤 `docker compose up -d server dashboard`로 되돌렸고 데이터는 같은 PostgreSQL이라 그대로다.
+4. PR #12의 첫 CI 실행에서 서버 잡이 실패했다(`PriceFileParserTest > the shipped example file parses`, 128개 중 1개). 이 테스트는 예시 요금표를 실제로 읽어 공급처 집합이 `{openai, anthropic, fake}`와 같은지 단언하는데, `ollama` 행이 들어가자 집합이 달라졌다. 기대 집합에 `ollama`를 더했다(테스트 한 줄). 완료 기준 6의 "서버 코드는 바꾸지 않는다"는 운영 코드 기준으로는 지켰고 이 테스트 기대값이 유일한 예외다. 예시 파일에 공급처를 더하면 이 테스트도 같이 고쳐야 한다.
 
 ## 실행한 검증과 결과 (2026-11-08)
 
@@ -107,7 +108,7 @@
 - bootRun 경로(호스트 → `localhost:11434`): `qwen3:0.6b` 일반 18.5초(모델 적재 포함), 스트리밍 TTFT 0.41초·총 0.43초, 비용 `0.0`. 서버 로그 "provider ollama enabled: baseUrl=http://localhost:11434".
 - 대시보드(3000, nginx 경유): 요청 목록 태그 `sdk-check` 4행(공급처 `ollama`, 모델 `qwen3:4b`, 토큰, 비용 0.00 또는 "—", TTFT/소요, "성공 200 · 스트림"), 개요에서 프로젝트 `ollama-check`의 비용 내역 모델 탭에 `ollama/qwen3:4b` 요청 4·비용 0.00.
 - `PriceSeeder` 로그: 수정한 예시 파일로 재시작 시 "2 rows inserted, 11 already present"(compose), bootRun에서는 "0 rows inserted, 13 already present".
-- 되돌린 compose 스택에서 `bash scripts/smoke.sh` 13단계 PASS(8초), 대시보드 테스트 28개 통과. 서버 코드는 바꾸지 않았다.
+- 되돌린 compose 스택에서 `bash scripts/smoke.sh` 13단계 PASS(8초), 대시보드 테스트 28개 통과. 서버 운영 코드는 바꾸지 않았다. 첫 CI에서 실패한 `PriceFileParserTest`(겪은 문제 4)는 기대값을 고친 뒤 로컬에서 `./gradlew :server:test --tests tokentollgate.pricing.PriceFileParserTest`로 5개 통과를 확인했고, 서버 전체 128개와 CI 세 잡의 재실행은 PR #12 체크에서 확인한다.
 - 설치: `pip install openai` → 3.46.0.
 
 ## 측정값 모음 (1단계 전체)
