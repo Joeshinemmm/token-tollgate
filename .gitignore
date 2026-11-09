@@ -21,3 +21,6 @@ http-client.private.env.json
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Hallmark design-run records (before/after captures, rotation log)
+.hallmark/
