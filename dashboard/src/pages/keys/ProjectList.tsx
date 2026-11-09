@@ -57,10 +57,9 @@ export function ProjectList({
           보관된 프로젝트 보기
         </label>
       </div>
-      <form className="row" style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)' }} onSubmit={create}>
+      <form className="row project-add" onSubmit={create}>
         <input
           className="input"
-          style={{ flex: 1 }}
           aria-label="새 프로젝트 이름"
           placeholder="새 프로젝트 이름"
           value={newName}

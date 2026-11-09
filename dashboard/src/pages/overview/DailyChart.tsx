@@ -13,38 +13,35 @@ function shortDay(day: string): string {
   return day.slice(5)
 }
 
-/** One series of one metric per day: an area wash under a 2px line, a crosshair tooltip, and a table twin. */
+/**
+ * One series of one metric per day: a 2px line over a faint wash, a crosshair tooltip, and a table twin.
+ * Days are joined by straight segments, because a curve would draw values between days that nobody measured.
+ * Tick type and grid color come from the stylesheet (`.chart`).
+ */
 export function DailyChart({ points, metric, showTable }: DailyChartProps) {
   const empty = points.every((point) => point.requests === 0)
   return (
     <div>
       <div className="chart" role="img" aria-label={`일별 ${METRIC_TITLES[metric]}`}>
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer width="100%" height={264}>
           <AreaChart data={points} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
-            <CartesianGrid vertical={false} stroke="var(--line)" />
-            <XAxis dataKey="day" tickFormatter={shortDay} tick={{ fontSize: 12, fill: 'var(--ink-3)' }} tickLine={false} axisLine={{ stroke: 'var(--line)' }} minTickGap={20} />
-            <YAxis
-              tickFormatter={(value: number) => formatMetric(metric, value)}
-              tick={{ fontSize: 12, fill: 'var(--ink-3)' }}
-              tickLine={false}
-              axisLine={false}
-              width={72}
-              allowDecimals={metric === 'cost'}
-            />
+            <CartesianGrid vertical={false} stroke="var(--color-rule)" />
+            <XAxis dataKey="day" tickFormatter={shortDay} tickLine={false} axisLine={{ stroke: 'var(--color-rule-2)' }} minTickGap={8} />
+            <YAxis tickFormatter={(value: number) => formatMetric(metric, value)} tickLine={false} axisLine={false} width={80} allowDecimals={metric === 'cost'} />
             <Tooltip
-              cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
+              cursor={{ stroke: 'var(--color-muted)', strokeWidth: 1 }}
               isAnimationActive={false}
               content={(props) => <ChartTip active={props.active} point={props.payload?.[0]?.payload as DayPoint | undefined} metric={metric} />}
             />
             <Area
-              type="monotone"
+              type="linear"
               dataKey={metric}
-              stroke="var(--chart-series)"
+              stroke="var(--color-accent)"
               strokeWidth={2}
-              fill="var(--chart-series)"
-              fillOpacity={0.1}
+              fill="var(--color-accent)"
+              fillOpacity={0.08}
               dot={false}
-              activeDot={{ r: 4, fill: 'var(--chart-series)', stroke: 'var(--surface)', strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: 'var(--color-accent)', stroke: 'var(--color-paper)', strokeWidth: 2 }}
               isAnimationActive={false}
             />
           </AreaChart>

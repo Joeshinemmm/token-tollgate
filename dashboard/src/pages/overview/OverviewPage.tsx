@@ -157,9 +157,9 @@ export function OverviewPage() {
           {error}
         </Alert>
       )}
-      <div className={dailyStale ? 'stack is-refreshing' : 'stack'}>
+      <div className={dailyStale ? 'overview-grid is-refreshing' : 'overview-grid'}>
         <div className="stat-row">
-          <StatTile label="총 비용 (USD)" value={totals ? formatUsd(totals.cost) : '—'} detail={totals ? '단가가 있는 요청만 더한 값' : undefined} warning={warning} />
+          <StatTile lead label="총 비용 (USD)" value={totals ? formatUsd(totals.cost) : '—'} detail={totals ? '단가가 있는 요청만 더한 값' : undefined} warning={warning} />
           <StatTile label="요청 수" value={totals ? formatCount(totals.requests) : '—'} detail={totals ? `성공 ${formatCount(totals.okRequests)} · 실패 ${formatCount(failed)}` : undefined} />
           <StatTile label="입력 토큰" value={totals ? formatCount(totals.inputTokens) : '—'} detail={totals ? `캐시 ${formatCount(totals.cachedInputTokens)} 포함` : undefined} />
           <StatTile label="출력 토큰" value={totals ? formatCount(totals.outputTokens) : '—'} />
@@ -169,27 +169,33 @@ export function OverviewPage() {
             <h2 id="daily-heading">일별 추이</h2>
             <div className="row">
               <Segmented label="지표" options={METRICS} value={metric} onChange={setMetric} />
-              <label className="row" style={{ fontSize: 13 }}>
+              <label className="check">
                 <input type="checkbox" checked={showTable} onChange={(event) => setShowTable(event.target.checked)} />
                 표로 보기
               </label>
             </div>
           </div>
           {daily ? (
-            <Suspense fallback={<p className="empty">차트를 불러오는 중…</p>}>
+            <Suspense fallback={<p className="empty chart-wait">차트를 불러오는 중…</p>}>
               <DailyChart points={daily.points} metric={metric} showTable={showTable} />
             </Suspense>
           ) : (
-            <p className="empty">불러오는 중…</p>
+            <p className="empty chart-wait">불러오는 중…</p>
           )}
         </section>
       </div>
-      <section className={groupsStale ? 'panel is-refreshing' : 'panel'} aria-labelledby="breakdown-heading">
-        <div className="panel-head">
+      <section className={groupsStale ? 'ledger is-refreshing' : 'ledger'} aria-labelledby="breakdown-heading">
+        <div className="ledger-head">
           <h2 id="breakdown-heading">비용 내역</h2>
           <Segmented label="내역 기준" options={BREAKDOWNS} value={breakdown} onChange={setBreakdown} />
         </div>
-        {groups ? <BreakdownTable groupBy={breakdown} groups={groups.summary.groups} totalCost={groups.summary.totals.cost} onPick={openRequests} /> : <p className="empty">불러오는 중…</p>}
+        {groups ? (
+          <div className="table-scroll">
+            <BreakdownTable groupBy={breakdown} groups={groups.summary.groups} totalCost={groups.summary.totals.cost} onPick={openRequests} />
+          </div>
+        ) : (
+          <p className="empty">불러오는 중…</p>
+        )}
       </section>
     </div>
   )
