@@ -82,6 +82,24 @@ class ProviderRegistryTest {
 	}
 
 	@Test
+	fun `a keyed provider takes its models with its own response timeout and never hands them to the default`() {
+		val exaone = ProviderConfig(name = "exaone", type = ProviderType.OPENAI, baseUrl = "https://api.exaone.ai", apiKeyEnv = "TEST_KEY", models = listOf("k-exaone*"), responseTimeout = Duration.ofSeconds(300))
+
+		val withKey = registry(fake, ollama, openai, exaone)
+		val route = withKey.route(ProviderType.OPENAI, "k-exaone_v2.5") as Route.To
+		assertEquals("exaone", route.provider.name)
+		assertEquals(Duration.ofSeconds(300), route.provider.settings.responseTimeout)
+		assertEquals(Duration.ofSeconds(60), route.provider.settings.streamIdleTimeout)
+		assertEquals("ollama", (withKey.route(ProviderType.OPENAI, "qwen3:4b") as Route.To).provider.name)
+
+		val withoutKey = registry(fake, ollama, exaone.copy(apiKeyEnv = "NOT_SET"))
+		val disabled = withoutKey.route(ProviderType.OPENAI, "k-exaone_v2.5")
+		assertIs<Route.Disabled>(disabled)
+		assertEquals("exaone", disabled.provider.name)
+		assertEquals("NOT_SET", disabled.provider.apiKeyEnv)
+	}
+
+	@Test
 	fun `the same name and type twice is refused`() {
 		assertThrows<IllegalArgumentException> { registry(fake, fake) }
 		registry(fake, fakeAnthropic)

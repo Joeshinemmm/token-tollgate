@@ -170,3 +170,32 @@ X-Tollgate-Tag: ollama
   "stream": true,
   "messages": [{"role": "user", "content": "Say hello in one word."}]
 }
+
+### 엑사원 K-EXAONE 2.5 (.env에 EXAONE_API_KEY가 있어야 한다. 항상 추론하므로 빠른 확인에는 reasoning_effort를 low로 둔다)
+# TODO: 아래 엑사원 요청 두 개는 아직 실제 키로 보내 보지 못했다(가입 화면이 회사 이메일을 요구했다).
+#  키를 받으면 나중에 보내 보고 결과를 docs/dev-log/014-exaone-provider.md에 적는다.
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: exaone
+
+{
+  "model": "k-exaone_v2.5",
+  "max_tokens": 512,
+  "reasoning_effort": "low",
+  "messages": [{"role": "user", "content": "한 문장으로 자기소개를 해 줘."}]
+}
+
+### 엑사원 K-EXAONE 2.5, 스트리밍 (추론은 reasoning_content 조각으로 먼저 흐르고 답은 content 조각으로 온다)
+POST {{baseUrl}}/v1/chat/completions
+Authorization: Bearer {{virtualKey}}
+Content-Type: application/json
+X-Tollgate-Tag: exaone
+
+{
+  "model": "k-exaone_v2.5",
+  "max_tokens": 512,
+  "reasoning_effort": "low",
+  "stream": true,
+  "messages": [{"role": "user", "content": "한 문장으로 자기소개를 해 줘."}]
+}

@@ -58,6 +58,15 @@ tollgate:
       base-url: https://api.openai.com
       api-key-env: OPENAI_API_KEY
       models: ["gpt-*", "o1*", "o3*", "o4*"]
+    # K-EXAONE always reasons before it answers, so a plain (non-streamed) response can take minutes to start.
+    # TODO: never called with a real key yet (sign-up asked for a company email). Once a key exists, send one plain
+    #  and one streamed request, then revisit the 300s below. See docs/dev-log/014-exaone-provider.md.
+    - name: exaone
+      type: openai
+      base-url: https://api.exaone.ai
+      api-key-env: EXAONE_API_KEY
+      models: ["k-exaone*"]
+      response-timeout: 300s
     - name: anthropic
       type: anthropic
       base-url: https://api.anthropic.com
