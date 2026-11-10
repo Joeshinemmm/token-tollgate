@@ -51,6 +51,7 @@ services:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      EXAONE_API_KEY: ${EXAONE_API_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

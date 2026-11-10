@@ -5,6 +5,7 @@
 # 값은 각 공급처의 공식 가격 페이지를 2026-11-01에 확인해 옮겼다. 가격은 바뀌므로 쓰기 전에 다시 확인하고,
 # 바뀐 가격은 이 파일의 행을 고치지 않고 effective_from이 더 늦은 행을 추가한다(PUT /admin/v1/prices도 같다).
 # 로컬 Ollama 모델은 API 과금이 없어 0으로 적었다. 다른 로컬 모델은 요금표 화면이나 PUT /admin/v1/prices로 더한다(이름 정확 일치).
+# 엑사원 API는 2026-11-09 공개 시점에 무료라 0으로 적었다. 유료로 바뀌면 그 날짜의 effective_from으로 행을 더한다.
 #
 # 필드
 #   provider               공급처 이름(공급처 설정과 사용 기록의 provider와 같아야 한다)
@@ -107,3 +108,12 @@ prices:
     cached_input_per_mtok: 0
     output_per_mtok: 0
     effective_from: 2026-11-01
+
+  # 엑사원(EXAONE API Platform). 출처 https://docs.exaone.ai/ko/docs/changelog ("현재 무료로 제공"), 확인일 2026-11-10.
+  # effective_from은 API 공개일이다. 약관에 유료 전환 가능성이 있으므로 쓰기 전에 다시 확인한다
+  - provider: exaone
+    model: k-exaone_v2.5
+    input_per_mtok: 0
+    cached_input_per_mtok: 0
+    output_per_mtok: 0
+    effective_from: 2026-11-09
