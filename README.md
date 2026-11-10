@@ -85,6 +85,25 @@ PowerShell에서는 `$env:TOLLGATE_ADMIN_TOKEN = "<토큰>"`처럼 먼저 지정
 
 [Ollama](https://ollama.com)를 설치하고 모델을 받으면(`ollama pull qwen3:4b`) 설정을 바꾸지 않고 바로 쓸 수 있다. 어느 패턴에도 맞지 않는 OpenAI 형식 모델명은 기본 공급처 `ollama`로 가며, 개발 모드에서는 `OLLAMA_BASE_URL`(기본 `http://localhost:11434`), compose에서는 `host.docker.internal:11434`로 찾는다. 요청의 `model`에는 Ollama의 모델 이름(`qwen3:4b`)을 그대로 쓴다. 예시 요금표에 `qwen3:4b`와 `qwen3:0.6b`가 단가 0으로 들어 있어 비용이 0으로 기록되고, 다른 모델은 요금표에 0 단가 행을 더하면 된다(없으면 "단가 없음"으로 센다). `examples/openai_sdk_check.py`는 OpenAI 공식 SDK의 base URL과 키만 바꿔 게이트웨이를 거쳐 Ollama 모델을 부르는 예시다. Qwen3처럼 답하기 전에 생각하는 모델은 출력 토큰이 수백 개가 되고, 생각이 끝날 때까지 스트림 조각이 오지 않아 첫 토큰 시간(TTFT)이 길게 기록된다.
 
+### 엑사원(K-EXAONE 2.5) 쓰기
+
+LG AI연구원의 [EXAONE API Platform](https://docs.exaone.ai/ko/docs/overview)은 OpenAI 호환 `POST /v1/chat/completions`를 제공한다(2026-11-09 공개, 공개 시점에 무료). 문서 첫 화면의 "API Key 발급하기"에서 가입해 키를 받고(2026-11-10 기준 가입 양식이 회사 이메일을 요구한다) `.env`의 `EXAONE_API_KEY`에 넣으면(개발 모드에서는 셸 환경 변수) `k-exaone*` 모델 요청이 `https://api.exaone.ai`로 간다. 요청의 `model`에는 `k-exaone_v2.5`를 쓴다. 키가 비어 있으면 503 `provider_disabled`로 거절된다. 예시 요금표에 단가 0 행이 있어 비용이 0으로 기록되고, 유료로 바뀌면 그 날짜부터 적용되는 행을 더한다.
+
+이 저장소에서는 아직 실제 키로 엑사원을 불러 보지 못했다. 응답 형식의 해석은 공식 문서의 예시 응답으로 만든 테스트로만 확인했고, 실제 호출 확인은 할 일로 남아 있다([dev-log 014](docs/dev-log/014-exaone-provider.md)의 "남은 문제").
+
+```bash
+python examples/openai_sdk_check.py http://localhost:8080/v1 k-exaone_v2.5
+```
+
+이 모델은 답하기 전에 항상 추론하고 추론 강도(`reasoning_effort`)의 기본값이 `max`다. 그래서 응답이 느리고, 추론 토큰이 출력 토큰에 포함되어 출력 토큰 수가 크게 기록된다. 빠른 확인에는 요청에 `"reasoning_effort": "low"`를 넣는다(게이트웨이는 본문의 다른 필드를 그대로 전달한다). 일반 응답이 오래 걸릴 수 있어 이 공급처만 응답 대기 시간을 300초로 두었다. 스트리밍에서는 추론이 `reasoning_content` 조각으로 먼저 흐르고 답이 `content` 조각으로 오며, 첫 토큰 시간(TTFT)은 첫 답변 조각 기준으로 기록된다. 오류 본문은 OpenAI 형식이 아니라 `{"result_code", "description"}`이고 그대로 전달되며, 기록의 오류 종류는 `http_429`처럼 상태 코드로 남는다. 한도 헤더(`x-day-rate-limit-remaining` 등)와 `retry-after`도 그대로 전달된다.
+
+쓰기 전에 [이용약관](https://docs.exaone.ai/ko/terms/terms-of-service)을 확인한다. 2026-11-09 시행본에서 이 게이트웨이와 관련된 내용은 다음과 같다.
+
+- 비상업적 용도로 본인만 쓴다. 키 공유와, 제3자가 모델을 부르게 하는 연동·재제공이 금지이므로 엑사원으로 가는 가상 키를 다른 사람에게 주지 않는다.
+- 키는 발급 후 30일 뒤 만료된다. 다시 발급해 `EXAONE_API_KEY`를 바꾸고 서버를 재시작한다(키는 시작할 때 읽는다).
+- 입력과 결과가 기본적으로 모델 학습에 쓰일 수 있고 플랫폼에서 거부할 수 있다. 타인의 개인정보는 넣지 않는다.
+- 승인 없는 부하 시험이 금지다. 부하·장애 시험은 가짜 공급처로만 한다.
+
 ## 중계와 공급처 설정
 
 도구의 base URL을 `http://localhost:8080/v1`로, API 키를 발급받은 가상 키로 바꾸면 OpenAI 형식 `POST /v1/chat/completions`와 Anthropic 형식 `POST /v1/messages`(둘 다 일반·SSE 스트리밍)가 공급처로 중계된다. 요청마다 `usage_records`에 프로토콜·공급처·모델·입력/출력/캐시 토큰·비용·첫 토큰까지 시간·소요 시간·상태·결과가 1건 기록되고, 응답 헤더 `x-tollgate-request-id`가 그 기록의 `request_id`다. 요청·응답 본문은 저장하지 않는다. 선택 헤더 `X-Tollgate-Tag: <작업 이름>`을 보내면 기록에 태그가 남는다.
@@ -113,7 +132,7 @@ OpenAI 형식의 스트리밍 요청은 상류에 `stream_options.include_usage`
 | `default` | 같은 종류에서 어떤 패턴에도 맞지 않는 모델을 받는 공급처 |
 | `models` | 모델명 패턴(`*` 와일드카드). 설정 순서대로 첫 일치가 이긴다 |
 
-기본 설정은 `fake-*` → 가짜 공급처(`FAKE_PROVIDER_URL`, 두 종류), `gpt-*`·`o1*`·`o3*`·`o4*` → OpenAI(`OPENAI_API_KEY`), `claude-*`와 그 외 Anthropic 형식 요청 → Anthropic(`ANTHROPIC_API_KEY`), 그 외 OpenAI 형식 요청 → Ollama(`OLLAMA_BASE_URL`)다. 키가 비어 있는 공급처로 가는 요청은 503 `provider_disabled`로 거절되며 메시지에 변수 이름이 나온다. 타임아웃은 `tollgate.upstream`(연결 5초, 응답 헤더 60초, 스트림 프레임 간격 60초)이며 공급처 항목에서 덮어쓸 수 있다.
+기본 설정은 `fake-*` → 가짜 공급처(`FAKE_PROVIDER_URL`, 두 종류), `gpt-*`·`o1*`·`o3*`·`o4*` → OpenAI(`OPENAI_API_KEY`), `k-exaone*` → 엑사원(`EXAONE_API_KEY`), `claude-*`와 그 외 Anthropic 형식 요청 → Anthropic(`ANTHROPIC_API_KEY`), 그 외 OpenAI 형식 요청 → Ollama(`OLLAMA_BASE_URL`)다. 키가 비어 있는 공급처로 가는 요청은 503 `provider_disabled`로 거절되며 메시지에 변수 이름이 나온다. 타임아웃은 `tollgate.upstream`(연결 5초, 응답 헤더 60초, 스트림 프레임 간격 60초)이며 공급처 항목에서 덮어쓸 수 있다(엑사원은 응답 헤더 300초).
 
 `GET /v1/models`(가상 키 필요)는 활성 공급처의 요금표 모델을 OpenAI 형식으로 돌려주고, `GET /admin/v1/providers`(관리자 토큰)는 공급처 목록을 키 없이 보여 준다.
 
