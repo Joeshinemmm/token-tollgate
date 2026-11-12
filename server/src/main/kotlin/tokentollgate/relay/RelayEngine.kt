@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatusCode
 import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.stereotype.Component
+import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.WebClientRequestException
 import org.springframework.web.reactive.function.client.awaitExchange
 import org.springframework.web.server.ServerWebExchange
@@ -28,8 +29,6 @@ import tokentollgate.upstream.ProviderRegistry
 import tokentollgate.upstream.Route
 import tokentollgate.usage.UsageDraft
 import tokentollgate.usage.UsageRecorder
-import java.net.ConnectException
-import java.net.UnknownHostException
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.TimeoutException
@@ -87,9 +86,7 @@ class RelayEngine(
 		upstreamRequest(exchange, provider, attempt).awaitExchange { upstream ->
 			val status = upstream.statusCode()
 			val headers = upstream.headers().asHttpHeaders()
-			val bytes = upstream.bodyToMono(ByteArray::class.java).awaitSingleOrNull() ?: ByteArray(0)
-			writePlain(exchange.response, status, headers, bytes)
-			attempt.plainResponse(status, bytes)
+			relayPlain(exchange, upstream, status, headers, attempt)
 		}
 	}
 
@@ -99,9 +96,7 @@ class RelayEngine(
 			val headers = upstream.headers().asHttpHeaders()
 			val contentType = headers.contentType
 			if (!status.is2xxSuccessful || contentType == null || !MediaType.TEXT_EVENT_STREAM.isCompatibleWith(contentType)) {
-				val bytes = upstream.bodyToMono(ByteArray::class.java).awaitSingleOrNull() ?: ByteArray(0)
-				writePlain(exchange.response, status, headers, bytes)
-				attempt.plainResponse(status, bytes)
+				relayPlain(exchange, upstream, status, headers, attempt)
 				return@awaitExchange
 			}
 
@@ -140,6 +135,12 @@ class RelayEngine(
 			.contentType(MediaType.APPLICATION_JSON)
 			.bodyValue(attempt.inspected.upstreamBody)
 
+	private suspend fun relayPlain(exchange: ServerWebExchange, upstream: ClientResponse, status: HttpStatusCode, headers: HttpHeaders, attempt: Attempt) {
+		val bytes = upstream.bodyToMono(ByteArray::class.java).awaitSingleOrNull() ?: ByteArray(0)
+		writePlain(exchange.response, status, headers, bytes)
+		attempt.plainResponse(status, bytes)
+	}
+
 	private suspend fun writePlain(response: ServerHttpResponse, status: HttpStatusCode, headers: HttpHeaders, bytes: ByteArray) {
 		response.statusCode = status
 		HeaderRules.copyResponseHeaders(headers, response.headers)
@@ -159,17 +160,15 @@ class RelayEngine(
 
 	private fun isTimeout(e: Throwable): Boolean = generateSequence(e) { it.cause }.any { it is ReadTimeoutException || it is TimeoutException }
 
-	private fun isUnreachable(e: Throwable): Boolean = generateSequence(e) { it.cause }.any { it is ConnectException || it is UnknownHostException }
-
 	private data class StreamFailure(val error: GatewayError, val outcome: Outcome, val errorType: String)
 
-	private fun streamFailure(provider: Provider, e: Throwable): StreamFailure = when {
-		isTimeout(e) -> StreamFailure(RelayErrors.streamTimeout(provider), Outcome.TIMEOUT, "upstream_timeout")
-		else -> {
+	private fun streamFailure(provider: Provider, e: Throwable): StreamFailure =
+		if (isTimeout(e)) {
+			StreamFailure(RelayErrors.streamTimeout(provider), Outcome.TIMEOUT, "upstream_timeout")
+		} else {
 			log.debug("upstream stream from {} ended early: {}", provider.name, e.toString())
 			StreamFailure(RelayErrors.streamInterrupted(provider), Outcome.UPSTREAM_ERROR, "stream_interrupted")
 		}
-	}
 
 	/** Mutable state of one relayed request; [finish] records it exactly once. */
 	private inner class Attempt(val adapter: ProtocolAdapter, val requestId: UUID, val key: AuthenticatedKey, val inspected: InspectedRequest) {
@@ -243,14 +242,13 @@ class RelayEngine(
 		suspend fun failed(exchange: ServerWebExchange, upstream: Provider, e: Exception) {
 			val error = when {
 				isTimeout(e) -> RelayErrors.upstreamTimeout(upstream)
-				e is WebClientRequestException && isUnreachable(e) -> RelayErrors.upstreamUnreachable(upstream)
 				e is WebClientRequestException -> RelayErrors.upstreamUnreachable(upstream)
 				else -> RelayErrors.gatewayFailure()
 			}
 			if (error.code == "gateway_error") log.error("relay failed for request {}", requestId, e) else log.warn("relay failed for request {}: {}", requestId, e.toString())
 			if (exchange.response.isCommitted) {
 				// The client already has a status line; a client that went away shows up here as a write failure.
-				outcome = if (cancelled || httpStatus == 0) Outcome.CLIENT_ABORT else outcome
+				if (cancelled || httpStatus == 0) outcome = Outcome.CLIENT_ABORT
 				if (httpStatus == 0) httpStatus = exchange.response.statusCode?.value() ?: 200
 				finish()
 				return

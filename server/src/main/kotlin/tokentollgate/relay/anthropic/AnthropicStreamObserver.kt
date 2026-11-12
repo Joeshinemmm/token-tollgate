@@ -3,6 +3,7 @@ package tokentollgate.relay.anthropic
 import tokentollgate.pricing.TokenUsage
 import tokentollgate.relay.SseFrame
 import tokentollgate.relay.StreamObserver
+import tokentollgate.relay.stringOrNull
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.ObjectMapper
 
@@ -35,10 +36,10 @@ class AnthropicStreamObserver(private val mapper: ObjectMapper) : StreamObserver
 			return true
 		}
 		if (node == null || !node.isObject) return true
-		when (node.path("type").let { if (it.isString) it.stringValue() else "" }) {
+		when (node.path("type").stringOrNull() ?: "") {
 			"message_start" -> {
 				val message = node.path("message")
-				if (model == null) message.path("model").let { if (it.isString) model = it.stringValue() }
+				if (model == null) model = message.path("model").stringOrNull()
 				accumulator.start(message.path("usage"))
 			}
 			"content_block_delta" -> if (firstContentNanos == null) firstContentNanos = System.nanoTime()
@@ -46,7 +47,7 @@ class AnthropicStreamObserver(private val mapper: ObjectMapper) : StreamObserver
 			"message_stop" -> done = true
 			"error" -> {
 				sawError = true
-				errorType = node.path("error").path("type").let { if (it.isString) it.stringValue() else null }
+				errorType = node.path("error").path("type").stringOrNull()
 			}
 		}
 		return true

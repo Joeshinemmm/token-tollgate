@@ -3,7 +3,7 @@ package tokentollgate.relay
 import org.springframework.http.HttpStatus
 import tokentollgate.upstream.Provider
 
-/** An error the gateway itself raises, written in OpenAI's `{"error": {...}}` shape (the Anthropic shape arrives in 007). */
+/** An error the gateway itself raises, written in OpenAI's `{"error": {...}}` shape (the Anthropic shape is in [tokentollgate.relay.anthropic.AnthropicErrors]). */
 data class GatewayError(
 	val status: HttpStatus,
 	val message: String,
