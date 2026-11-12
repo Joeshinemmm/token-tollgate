@@ -125,7 +125,7 @@ class GatewayAuthTest {
 	}
 
 	@Test
-	fun `first use records last_used_at without blocking the request`() = runBlocking {
+	fun `first use records last_used_at without blocking the request`() = runBlocking<Unit> {
 		val project = client.createProject()
 		val issued = client.issueKey(project.id)
 

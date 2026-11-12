@@ -1,8 +1,8 @@
 # 015 저장소 전체 코드 정리
 
 - 분석·승인·정리·검증: 2026-11-13
-- 브랜치: `feature/code-cleanup` (커밋 다섯 개 + 이 기록)
-- 성격: 동작을 바꾸지 않는 정리다. 기능 추가, 버그 수정, 성능 조정은 하지 않았고 발견한 것은 아래 목록으로만 남겼다
+- 브랜치: `feature/code-cleanup` (정리 커밋 다섯 개 + 이 기록 + 후속 테스트 수정 커밋 하나)
+- 성격: 동작을 바꾸지 않는 정리다. 기능 추가, 버그 수정, 성능 조정은 하지 않았고 발견한 것은 아래 목록으로만 남겼다. 예외는 하나다. 실행되지 않던 테스트 두 개는 승인을 따로 받아 별도 `[fix]` 커밋으로 고쳤다(끝의 "후속 수정")
 
 ## 목표
 
@@ -87,10 +87,10 @@
 - 데이터 로딩 effect의 공용 훅(같은 취소 패턴이 일곱 번 나온다).
 - 파일 밖에서 쓰지 않는 export 열두 개, 인라인 `fontSize: 13` 네 곳, CSS 규칙이 없는 `ledger` 클래스, `DailyChart`의 격자 색 중복, `nginx.conf`의 프록시 헤더 중복.
 
-## 버그 의심 지점 (수정하지 않음)
+## 버그 의심 지점 (1번만 후속 수정, 나머지는 수정하지 않음)
 
 **직접 확인한 것**
-1. 실행되지 않는 테스트가 둘 있다. `VirtualKeyAdminApiTest`의 "issuing returns the plaintext once and stores only its hash"와 `GatewayAuthTest`의 "first use records last_used_at without blocking the request"다. `= runBlocking { … }`의 마지막 식이 값을 돌려줘 메서드 반환형이 Unit이 아니고, JUnit은 그런 `@Test`를 건너뛴다. 테스트 리포트에서 각각 4개 중 3개, 7개 중 6개만 실행됐다. 006에서 `ModelsApiTest`에 같은 문제가 있어 `runBlocking<Unit>`으로 고친 적이 있다. 그래서 "서버 141개"에는 이 둘이 빠져 있다.
+1. (후속 수정에서 고침) 실행되지 않는 테스트가 둘 있었다. `VirtualKeyAdminApiTest`의 "issuing returns the plaintext once and stores only its hash"와 `GatewayAuthTest`의 "first use records last_used_at without blocking the request"다. `= runBlocking { … }`의 마지막 식이 값을 돌려줘 메서드 반환형이 Unit이 아니고, JUnit은 그런 `@Test`를 건너뛴다. 테스트 리포트에서 각각 4개 중 3개, 7개 중 6개만 실행됐다. 006에서 `ModelsApiTest`에 같은 문제가 있어 `runBlocking<Unit>`으로 고친 적이 있다. 그래서 "서버 141개"에는 이 둘이 빠져 있다.
 2. `usage/UsageQueryService.kt`의 `records`: 받은 행 수가 `limit`과 같으면 다음 커서를 채운다. 남은 행이 정확히 한 페이지 분량이면 "더 보기"가 빈 페이지를 한 번 받는다.
 3. `fake-provider`의 `FakeTextTest`: `assertEquals(FakeText.content(25), FakeText.content(25))`는 같은 호출을 자기 자신과 비교해 아무것도 검증하지 않는다.
 4. `keys/VirtualKeyService.kt`의 `issue`: 보관된 프로젝트 검사가 이름 검증보다 앞이라, 보관된 프로젝트에 빈 이름으로 발급을 요청하면 400이 아니라 409가 나온다. 의도인지 확인이 필요하다.
@@ -106,8 +106,22 @@
 12. 대시보드 `KeysPage`: 키 발급 창을 취소로 닫아도 키 목록을 다시 조회한다.
 13. 접근성: `Modal`이 포커스를 창 안에 가두지 않고 닫은 뒤 되돌리지 않는다. `Segmented`가 `role="tablist"`인데 tabpanel 연결이 없다. `PriceTable`의 이력 버튼 aria-label에 모델 이름만 있어 공급처가 다른 같은 이름을 구분하지 못한다.
 
+## 후속 수정: 실행되지 않던 테스트 두 개 (2026-11-13)
+
+버그 의심 1을 정리 커밋과 섞지 않으려고 승인을 따로 받아 별도 `[fix]` 커밋으로 했다.
+
+- 바꾼 것: 두 테스트의 선언을 `= runBlocking {`에서 `= runBlocking<Unit> {`으로 바꿨다. 본문과 단언은 그대로고, 운영 코드는 건드리지 않았다.
+- 이유: 블록의 마지막 식이 값을 돌려주면 함수의 반환형이 Unit이 아니게 된다. `VirtualKeyAdminApiTest`는 `WebTestClient` 단언 체인이, `GatewayAuthTest`는 `assertNotNull`이 돌려주는 값이 마지막 식이었다. 형식 인자 `<Unit>`을 적으면 마지막 식이 무엇이든 반환형이 Unit으로 고정된다.
+- 결과: 두 테스트가 처음으로 실행됐고 둘 다 통과했다. 한 번도 돈 적이 없던 테스트라 실패할 수도 있었는데, 키 발급 시 해시만 저장하는 동작과 첫 사용 때 `last_used_at`을 기록하는 동작이 테스트가 적어 둔 대로였다.
+
+| 검증 | 결과 |
+|---|---|
+| 두 클래스만 실행(`./gradlew :server:test --tests …`) | `VirtualKeyAdminApiTest` 4개 중 4개, `GatewayAuthTest` 7개 중 7개 실행·통과(전에는 3개, 6개) |
+| 전체 실행(`./gradlew test`) | 서버 143개 통과(전 141), 실패 0. 가짜 공급처는 바뀐 것이 없어 다시 돌지 않았다(직전 전체 실행의 리포트 40개) |
+| 선언 수와 실행 수 대조 | 테스트 파일마다 `@Test` 개수와 리포트의 실행 수를 비교했다. 서버 143 = 143, 가짜 공급처 40 = 40, 건너뜀 0. 같은 문제가 남은 테스트는 없다 |
+
 ## 남은 문제
 
-- 위 버그 의심 1은 테스트 두 개가 한 번도 돈 적이 없다는 뜻이다. `runBlocking<Unit>`으로 고치면 실행되는데, 그때 통과하는지는 돌려 봐야 안다. 별도 `[fix]` 작업으로 다룬다.
+- 같은 모양(`= runBlocking {`)으로 선언된 테스트가 33개 더 있다. 지금은 마지막 식이 Unit이라 모두 실행되지만, 마지막 줄이 값을 돌려주게 바뀌면 실패 없이 조용히 빠진다. 선언을 `runBlocking<Unit>`으로 통일하거나 선언 수와 실행 수를 CI에서 대조하는 식의 방지 장치는 아직 없다.
 - 보류 목록 중 테스트 지원 코드 공유와 `RelayEngine` 분리는 구조를 바꾸는 일이라 2단계 계획에서 필요할 때 다시 본다.
 - 이 브랜치는 push하지 않았다.
