@@ -1,11 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Price } from '../../api/types'
-import { TOKEN_STORAGE_KEY } from '../../auth/AuthContext'
-import { AuthProvider } from '../../auth/AuthProvider'
 import { todayIsoDate } from '../../format'
 import { errorReply, fakeAdminApi, reply, type FakeAdminApi } from '../../test/fakeApi'
+import { renderWithAuth } from '../../test/renderWithAuth'
 import { DELETE_CONFLICT_MESSAGE, PricesPage } from './PricesPage'
 import { RATE_MESSAGE, REQUIRED_MESSAGE } from './priceModel'
 
@@ -18,12 +17,7 @@ const PRICES: Price[] = [
 const PROVIDERS = [{ name: 'fake', type: 'openai', baseUrl: 'http://fake', enabled: true, default: true, models: ['fake-*'] }]
 
 function renderPricesPage() {
-  window.sessionStorage.setItem(TOKEN_STORAGE_KEY, 'test-token')
-  return render(
-    <AuthProvider>
-      <PricesPage />
-    </AuthProvider>,
-  )
+  return renderWithAuth(<PricesPage />)
 }
 
 describe('PricesPage', () => {

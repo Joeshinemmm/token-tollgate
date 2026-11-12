@@ -12,19 +12,23 @@ interface FieldProps {
 /** A label, a control and its hint or error, wired together for screen readers. */
 export function Field({ label, hint, error, className, children }: FieldProps) {
   const id = useId()
+  let message: ReactNode = null
+  if (error) {
+    message = (
+      <span className="field-error" role="alert">
+        {error}
+      </span>
+    )
+  } else if (hint) {
+    message = <span className="field-hint">{hint}</span>
+  }
   return (
     <div className={className ? `field ${className}` : 'field'}>
       <label className="field-label" htmlFor={id}>
         {label}
       </label>
       {children(id, Boolean(error))}
-      {error ? (
-        <span className="field-error" role="alert">
-          {error}
-        </span>
-      ) : hint ? (
-        <span className="field-hint">{hint}</span>
-      ) : null}
+      {message}
     </div>
   )
 }

@@ -25,6 +25,11 @@ export function reply(status: number, body?: unknown): FakeReply {
   return { status, body }
 }
 
+/** The query string of a recorded call. */
+export function query(call: RecordedCall): URLSearchParams {
+  return new URLSearchParams(call.path.split('?')[1] ?? '')
+}
+
 export function errorReply(status: number, code: string, message: string): FakeReply {
   return { status, body: { error: { code, message } } }
 }

@@ -1,7 +1,6 @@
-import type { GroupBy, UsageGroup } from '../../api/types'
+import type { UsageGroup } from '../../api/types'
 import { formatCount, formatPercent, formatUsd } from '../../format'
-
-export type Breakdown = Exclude<GroupBy, 'day'>
+import { BREAKDOWN_LABELS, type Breakdown } from './breakdowns'
 
 interface BreakdownTableProps {
   groupBy: Breakdown
@@ -9,8 +8,6 @@ interface BreakdownTableProps {
   totalCost: number
   onPick: (group: UsageGroup) => void
 }
-
-const NAME_HEADS: Record<Breakdown, string> = { project: '프로젝트', model: '모델', tag: '태그' }
 
 function displayName(groupBy: Breakdown, group: UsageGroup): string {
   if (groupBy === 'project') return group.label ?? group.key ?? '(없음)'
@@ -29,7 +26,7 @@ export function BreakdownTable({ groupBy, groups, totalCost, onPick }: Breakdown
     <table className="table">
       <thead>
         <tr>
-          <th scope="col">{NAME_HEADS[groupBy]}</th>
+          <th scope="col">{BREAKDOWN_LABELS[groupBy]}</th>
           <th scope="col" className="num">
             요청
           </th>

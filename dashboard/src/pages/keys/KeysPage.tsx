@@ -5,11 +5,10 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert } from '../../components/Alert'
 import { Badge } from '../../components/Badge'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { increment } from '../../updates'
 import { IssueKeyDialog } from './IssueKeyDialog'
 import { KeyTable } from './KeyTable'
 import { ProjectList } from './ProjectList'
-
-const increment = (count: number) => count + 1
 
 interface LoadedKeys {
   projectId: string

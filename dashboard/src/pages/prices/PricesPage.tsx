@@ -5,13 +5,12 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert } from '../../components/Alert'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatUtcDate, todayIsoDate } from '../../format'
+import { increment, toggled } from '../../updates'
 import { PriceForm } from './PriceForm'
 import { PriceTable } from './PriceTable'
 import { emptyPriceForm, groupPrices, priceToForm, type PriceFormValues } from './priceModel'
 
 export const DELETE_CONFLICT_MESSAGE = '사용 기록이 참조하는 단가는 삭제할 수 없습니다. 더 늦은 적용 시작으로 새 행을 추가하세요.'
-
-const increment = (count: number) => count + 1
 
 export function PricesPage() {
   const { api } = useAuth()
@@ -85,13 +84,7 @@ export function PricesPage() {
     }
   }
 
-  const toggleHistory = (key: string) =>
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+  const toggleHistory = (key: string) => setExpanded((current) => toggled(current, key))
 
   return (
     <div className="stack">
