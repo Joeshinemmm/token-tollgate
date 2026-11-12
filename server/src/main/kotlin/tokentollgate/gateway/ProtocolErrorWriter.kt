@@ -15,7 +15,7 @@ import tools.jackson.databind.ObjectMapper
 @Component
 class ProtocolErrorWriter(private val mapper: ObjectMapper) {
 
-	fun isAnthropic(exchange: ServerWebExchange): Boolean =
+	private fun isAnthropic(exchange: ServerWebExchange): Boolean =
 		exchange.request.path.value().startsWith(ANTHROPIC_PATH)
 
 	fun write(

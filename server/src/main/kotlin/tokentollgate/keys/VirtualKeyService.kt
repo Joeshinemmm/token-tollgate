@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.mono
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import tokentollgate.common.BadRequestException
 import tokentollgate.common.ConflictException
 import tokentollgate.common.NotFoundException
 import tokentollgate.db.KeyAuthView
@@ -42,9 +41,7 @@ class VirtualKeyService(
 	suspend fun issue(projectId: UUID, name: String): IssuedKey {
 		val project = projects.get(projectId)
 		if (project.archivedAt != null) throw ConflictException("Project is archived: $projectId")
-		val cleanName = name.trim()
-		if (cleanName.isEmpty()) throw BadRequestException("name must not be blank")
-		if (cleanName.length > MAX_NAME_LENGTH) throw BadRequestException("name must be at most $MAX_NAME_LENGTH characters")
+		val cleanName = validateName(name)
 
 		val plaintext = KeyGenerator.generate()
 		val saved = keys.save(
@@ -101,7 +98,6 @@ class VirtualKeyService(
 	}
 
 	companion object {
-		const val MAX_NAME_LENGTH = 100
 		val LAST_USE_WRITE_INTERVAL: Duration = Duration.ofSeconds(60)
 	}
 }
