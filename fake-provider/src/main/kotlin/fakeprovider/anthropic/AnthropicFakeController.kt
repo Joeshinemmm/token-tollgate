@@ -10,6 +10,7 @@ import fakeprovider.directive.DirectiveParser
 import fakeprovider.error.FakeErrorHandler.Companion.REQUEST_ID_HEADER
 import fakeprovider.error.FakeErrors
 import fakeprovider.error.InvalidRequestException
+import fakeprovider.error.Protocol
 import fakeprovider.text.FakeText
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.reactor.mono
@@ -74,7 +75,7 @@ class AnthropicFakeController(
 
 	private suspend fun fail(response: ServerHttpResponse, status: Int, directive: Directive, requestId: String): Int {
 		if (directive.ttftMs > 0) delay(directive.ttftMs)
-		val body = FakeErrors.anthropic(status, FakeErrors.anthropicMessage(status), requestId)
+		val body = FakeErrors.body(Protocol.ANTHROPIC, status, requestId = requestId)
 		writer.json(response, HttpStatusCode.valueOf(status), body, headers(requestId))
 		return status
 	}
@@ -128,6 +129,6 @@ class AnthropicFakeController(
 	private fun headers(requestId: String): Map<String, String> = mapOf(REQUEST_ID_HEADER to requestId)
 
 	companion object {
-		const val PATH = "/v1/messages"
+		const val PATH = Protocol.ANTHROPIC_PATH
 	}
 }

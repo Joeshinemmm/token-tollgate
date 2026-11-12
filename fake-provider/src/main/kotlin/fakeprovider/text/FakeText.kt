@@ -8,7 +8,7 @@ object FakeText {
 		"eiusmod", "tempor", "incididunt", "ut", "labore", "et", "dolore", "magna", "aliqua",
 	)
 
-	fun word(index: Int): String = WORDS[index % WORDS.size]
+	private fun word(index: Int): String = WORDS[index % WORDS.size]
 
 	/** The text of stream chunk [index]: a leading space joins it to the previous chunk. */
 	fun chunk(index: Int): String = if (index == 0) word(0) else " " + word(index)
