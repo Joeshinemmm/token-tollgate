@@ -64,7 +64,7 @@ class AnthropicRelayTest {
 	)
 
 	@Test
-	fun `plain response is relayed unchanged and recorded with normalized usage`() = runBlocking {
+	fun `plain response is relayed unchanged and recorded with normalized usage`() = runBlocking<Unit> {
 		val body = post(messagesBody("fake-relay:in=120,cached=20,out=8"))
 			.expectStatus().isOk
 			.expectHeader().exists("request-id")
@@ -92,7 +92,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `a stream passes through byte for byte and is recorded from message_start and message_delta`() = runBlocking {
+	fun `a stream passes through byte for byte and is recorded from message_start and message_delta`() = runBlocking<Unit> {
 		val body = messagesBody("fake-relay:in=120,cached=20,out=8,ttft=100", stream = true)
 		val relayed = readSse(port, path, key, body)
 		val direct = readSse(port, "/fake$path", FakeUpstreamInitializer.FAKE_KEY, body)
@@ -118,7 +118,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `an upstream 529 is passed through and recorded`() = runBlocking {
+	fun `an upstream 529 is passed through and recorded`() = runBlocking<Unit> {
 		val body = post(messagesBody("fake-relay:err=529"))
 			.expectStatus().isEqualTo(529)
 			.expectBody()
@@ -134,7 +134,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `an upstream stream cut mid-way ends with a gateway error event`() = runBlocking {
+	fun `an upstream stream cut mid-way ends with a gateway error event`() = runBlocking<Unit> {
 		val result = readSse(port, path, key, messagesBody("fake-relay:out=5,abort=2", stream = true))
 
 		assertEquals(200, result.status?.value())
@@ -154,7 +154,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `an upstream error event is forwarded and recorded`() = runBlocking {
+	fun `an upstream error event is forwarded and recorded`() = runBlocking<Unit> {
 		val result = readSse(port, path, key, messagesBody("fake-relay:out=5,streamerr=2", stream = true))
 
 		assertNull(result.error)
@@ -168,7 +168,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `a slow upstream is a 504 in Anthropic shape and a timeout record`() = runBlocking {
+	fun `a slow upstream is a 504 in Anthropic shape and a timeout record`() = runBlocking<Unit> {
 		val body = post(messagesBody("slow-model:ttft=2000,out=1"))
 			.expectStatus().isEqualTo(504)
 			.expectBody()
@@ -183,7 +183,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `a model routed to a provider without its key is a 503 in Anthropic shape`() = runBlocking {
+	fun `a model routed to a provider without its key is a 503 in Anthropic shape`() = runBlocking<Unit> {
 		val body = post(messagesBody("claude-x"))
 			.expectStatus().isEqualTo(503)
 			.expectBody()
@@ -196,7 +196,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `the virtual key never reaches the upstream`() = runBlocking {
+	fun `the virtual key never reaches the upstream`() = runBlocking<Unit> {
 		val body = post(messagesBody("nokey-model"))
 			.expectStatus().isUnauthorized
 			.expectBody()
@@ -209,7 +209,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `a client that disconnects mid-stream is recorded as client_abort`() = runBlocking {
+	fun `a client that disconnects mid-stream is recorded as client_abort`() = runBlocking<Unit> {
 		val result = readSse(port, path, key, messagesBody("fake-relay:out=30,gap=200", stream = true), takeFrames = 4)
 
 		assertEquals(200, result.status?.value())
@@ -220,7 +220,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `a request without a model is refused in Anthropic shape and not recorded`() = runBlocking {
+	fun `a request without a model is refused in Anthropic shape and not recorded`() = runBlocking<Unit> {
 		val body = post(mapOf("max_tokens" to 64, "messages" to listOf(mapOf("role" to "user", "content" to "hi"))))
 			.expectStatus().isBadRequest
 			.expectBody()
@@ -234,7 +234,7 @@ class AnthropicRelayTest {
 	}
 
 	@Test
-	fun `upstream validation such as a missing max_tokens is passed through`() = runBlocking {
+	fun `upstream validation such as a missing max_tokens is passed through`() = runBlocking<Unit> {
 		val body = post(messagesBody("fake-relay:out=3", maxTokens = null))
 			.expectStatus().isBadRequest
 			.expectBody()

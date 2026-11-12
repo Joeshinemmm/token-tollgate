@@ -33,7 +33,7 @@ class RepositoryTest {
 	)
 
 	@Test
-	fun `project, key, price and usage record round-trip through the database`() = runBlocking {
+	fun `project, key, price and usage record round-trip through the database`() = runBlocking<Unit> {
 		val project = newProject()
 		val projectId = assertNotNull(project.id, "database should generate the project id")
 
@@ -94,7 +94,7 @@ class RepositoryTest {
 	}
 
 	@Test
-	fun `duplicate key hash is rejected`() = runBlocking {
+	fun `duplicate key hash is rejected`() = runBlocking<Unit> {
 		val projectId = assertNotNull(newProject().id)
 		val first = newKey(projectId)
 		assertFailsWith<DataIntegrityViolationException> {
@@ -104,7 +104,7 @@ class RepositoryTest {
 	}
 
 	@Test
-	fun `check constraint rejects an unknown outcome`() = runBlocking {
+	fun `check constraint rejects an unknown outcome`() = runBlocking<Unit> {
 		val projectId = assertNotNull(newProject().id)
 		val keyId = assertNotNull(newKey(projectId).id)
 		assertFailsWith<DataIntegrityViolationException> {
