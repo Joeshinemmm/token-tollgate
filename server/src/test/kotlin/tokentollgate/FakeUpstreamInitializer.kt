@@ -52,6 +52,6 @@ class FakeUpstreamInitializer : ApplicationContextInitializer<ConfigurableApplic
 		/** One port for the whole test JVM; every integration test shares the cached context on it. */
 		val PORT: Int by lazy { ServerSocket(0).use { it.localPort } }
 		const val FAKE_KEY = "fake-upstream-key-0123456789abcdef"
-		private const val NEVER_SET = "TOLLGATE_TEST_KEY_THAT_IS_NEVER_SET"
+		const val NEVER_SET = "TOLLGATE_TEST_KEY_THAT_IS_NEVER_SET"
 	}
 }

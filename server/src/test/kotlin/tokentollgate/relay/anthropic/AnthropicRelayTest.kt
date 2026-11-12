@@ -24,11 +24,11 @@ import tokentollgate.json
 import tokentollgate.messagesBody
 import tokentollgate.readSse
 import tokentollgate.relay.HeaderRules
+import tokentollgate.requestIdOf
 import tokentollgate.sseEvent
 import tokentollgate.withKey
 import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -55,9 +55,6 @@ class AnthropicRelayTest {
 	private val path = AnthropicMessagesController.PATH
 
 	private fun post(body: Any) = client.post().uri(path).withKey(key).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
-
-	private fun requestIdOf(result: WebTestClient.BodyContentSpec): UUID =
-		UUID.fromString(result.returnResult().responseHeaders.getFirst(HeaderRules.REQUEST_ID_HEADER))
 
 	private val fullStream = listOf(
 		"message_start", "content_block_start", "ping",
@@ -117,7 +114,7 @@ class AnthropicRelayTest {
 		assertTrue(record.streamed)
 		assertEquals(Outcome.OK, record.outcome)
 		assertNotNull(record.ttftMs)
-		assertTrue(record.ttftMs!! >= 100, "ttft was ${record.ttftMs}")
+		assertTrue(record.ttftMs >= 100, "ttft was ${record.ttftMs}")
 	}
 
 	@Test

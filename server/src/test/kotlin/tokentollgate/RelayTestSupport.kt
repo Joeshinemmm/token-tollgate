@@ -47,13 +47,16 @@ suspend fun ModelPriceRepository.ensureFakePrices() {
 
 /** The record is written off the response path, so wait for it. */
 suspend fun UsageRecordRepository.awaitRecord(requestId: UUID, timeoutMs: Long = 5_000): UsageRecord = withTimeout(timeoutMs) {
-	while (true) {
-		findByRequestId(requestId)?.let { return@withTimeout it }
+	var record = findByRequestId(requestId)
+	while (record == null) {
 		delay(50)
+		record = findByRequestId(requestId)
 	}
-	@Suppress("UNREACHABLE_CODE")
-	error("unreachable")
+	record
 }
+
+fun requestIdOf(result: WebTestClient.BodyContentSpec): UUID =
+	UUID.fromString(result.returnResult().responseHeaders.getFirst(HeaderRules.REQUEST_ID_HEADER))
 
 /** A raw SSE exchange: status, headers, the bytes as received, and the error that ended it, if any. */
 data class SseResult(val status: HttpStatusCode?, val headers: HttpHeaders?, val raw: String, val error: Throwable?) {
@@ -69,7 +72,7 @@ fun ObjectMapper.json(frame: String): JsonNode = readTree(frame.sseData())
  * Reads the gateway's streamed response as raw bytes so that frames and the terminating `[DONE]` can be checked
  * exactly, keeping whatever arrived before the connection was cut. [takeFrames] cancels after that many buffers.
  */
-fun readSse(port: Int, path: String, key: String, body: Map<String, Any?>, takeFrames: Long? = null, extraHeaders: Map<String, String> = emptyMap()): SseResult {
+fun readSse(port: Int, path: String, key: String, body: Map<String, Any?>, takeFrames: Long? = null): SseResult {
 	var status: HttpStatusCode? = null
 	var headers: HttpHeaders? = null
 	var error: Throwable? = null
@@ -78,7 +81,6 @@ fun readSse(port: Int, path: String, key: String, body: Map<String, Any?>, takeF
 		.post().uri(path)
 		.contentType(MediaType.APPLICATION_JSON)
 		.header(HttpHeaders.AUTHORIZATION, "Bearer $key")
-		.headers { h -> extraHeaders.forEach { (name, value) -> h.set(name, value) } }
 		.bodyValue(body)
 		.exchangeToFlux { response ->
 			status = response.statusCode()

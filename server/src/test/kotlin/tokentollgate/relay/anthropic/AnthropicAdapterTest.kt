@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
+import tokentollgate.json
 import tokentollgate.relay.GatewayError
 import tokentollgate.relay.RelayErrors
 import tokentollgate.upstream.ModelPattern
@@ -56,7 +57,7 @@ class AnthropicAdapterTest {
 		val frame = String(adapter.errorFrame(RelayErrors.streamInterrupted(provider), UUID.randomUUID()), Charsets.UTF_8)
 		assertTrue(frame.startsWith("event: error\ndata: "))
 		assertTrue(frame.endsWith("\n\n"))
-		val data = mapper.readTree(frame.lines()[1].removePrefix("data: "))
+		val data = mapper.json(frame)
 		assertEquals("error", data.path("type").stringValue())
 		assertEquals("api_error", data.path("error").path("type").stringValue())
 		assertTrue(data.path("error").path("message").stringValue().contains("stream_interrupted"))

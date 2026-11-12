@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
+import tokentollgate.FakeUpstreamInitializer
 import tokentollgate.IntegrationTest
 import tokentollgate.awaitRecord
 import tokentollgate.chatBody
@@ -23,6 +24,7 @@ import tokentollgate.issueKey
 import tokentollgate.json
 import tokentollgate.readSse
 import tokentollgate.relay.HeaderRules
+import tokentollgate.requestIdOf
 import tokentollgate.withKey
 import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
@@ -58,9 +60,6 @@ class OpenAiRelayTest {
 	private fun post(body: Any, tag: String? = null) = client.post().uri(OpenAiChatController.PATH).withKey(key)
 		.also { if (tag != null) it.header("X-Tollgate-Tag", tag) }
 		.contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
-
-	private fun requestIdOf(result: WebTestClient.BodyContentSpec): UUID =
-		UUID.fromString(result.returnResult().responseHeaders.getFirst(HeaderRules.REQUEST_ID_HEADER))
 
 	@Test
 	fun `plain response is relayed unchanged and recorded with cost`() = runBlocking {
@@ -131,7 +130,7 @@ class OpenAiRelayTest {
 		assertTrue(record.streamed)
 		assertEquals(Outcome.OK, record.outcome)
 		assertNotNull(record.ttftMs)
-		assertTrue(record.ttftMs!! >= 100, "ttft was ${record.ttftMs}")
+		assertTrue(record.ttftMs >= 100, "ttft was ${record.ttftMs}")
 	}
 
 	@Test
@@ -237,7 +236,7 @@ class OpenAiRelayTest {
 			.expectStatus().isEqualTo(503)
 			.expectBody()
 			.jsonPath("$.error.code").isEqualTo("provider_disabled")
-			.jsonPath("$.error.message").value<String> { assertTrue(it.contains("TOLLGATE_TEST_KEY_THAT_IS_NEVER_SET")) }
+			.jsonPath("$.error.message").value<String> { assertTrue(it.contains(FakeUpstreamInitializer.NEVER_SET)) }
 		val record = records.awaitRecord(requestIdOf(body))
 		assertEquals("openai", record.provider)
 		assertEquals(Outcome.GATEWAY_ERROR, record.outcome)
