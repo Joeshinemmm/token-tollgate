@@ -46,11 +46,7 @@ class SecurityConfig(
 	@Order(3)
 	fun defaultChain(http: ServerHttpSecurity): SecurityWebFilterChain =
 		http
-			.csrf { it.disable() }
-			.httpBasic { it.disable() }
-			.formLogin { it.disable() }
-			.logout { it.disable() }
-			.securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
+			.disableSessionAndLogins()
 			.exceptionHandling { it.authenticationEntryPoint(HttpStatusServerEntryPoint(HttpStatus.UNAUTHORIZED)) }
 			.authorizeExchange {
 				it.pathMatchers("/actuator/health", "/actuator/health/**").permitAll()
@@ -71,12 +67,15 @@ class SecurityConfig(
 		}
 		return http
 			.securityMatcher(PathPatternParserServerWebExchangeMatcher(pattern))
-			.csrf { it.disable() }
+			.disableSessionAndLogins()
+			.addFilterAt(filter, SecurityWebFiltersOrder.AUTHENTICATION)
+			.exceptionHandling { it.authenticationEntryPoint(entryPoint) }
+	}
+
+	private fun ServerHttpSecurity.disableSessionAndLogins(): ServerHttpSecurity =
+		csrf { it.disable() }
 			.httpBasic { it.disable() }
 			.formLogin { it.disable() }
 			.logout { it.disable() }
 			.securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
-			.addFilterAt(filter, SecurityWebFiltersOrder.AUTHENTICATION)
-			.exceptionHandling { it.authenticationEntryPoint(entryPoint) }
-	}
 }

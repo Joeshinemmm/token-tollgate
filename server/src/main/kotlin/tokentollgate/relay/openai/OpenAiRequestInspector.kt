@@ -2,8 +2,8 @@ package tokentollgate.relay.openai
 
 import org.springframework.stereotype.Component
 import tokentollgate.relay.InspectedRequest
-import tokentollgate.relay.InvalidRelayRequestException
-import tools.jackson.core.JacksonException
+import tokentollgate.relay.readRequestObject
+import tokentollgate.relay.requireModel
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
 
@@ -16,14 +16,8 @@ import tools.jackson.databind.node.ObjectNode
 class OpenAiRequestInspector(private val mapper: ObjectMapper) {
 
 	fun inspect(body: ByteArray): InspectedRequest {
-		val root = try {
-			mapper.readTree(body)
-		} catch (e: JacksonException) {
-			throw InvalidRelayRequestException("Request body must be valid JSON")
-		}
-		if (root == null || !root.isObject) throw InvalidRelayRequestException("Request body must be a JSON object")
-		val model = root.path("model").let { if (it.isString) it.stringValue().trim() else "" }
-		if (model.isEmpty()) throw InvalidRelayRequestException("you must provide a model parameter", param = "model")
+		val root = readRequestObject(mapper, body)
+		val model = requireModel(root, "you must provide a model parameter")
 		val stream = root.path("stream").asBoolean(false)
 		val includeUsage = root.path("stream_options").path("include_usage").asBoolean(false)
 		if (!stream || includeUsage) return InspectedRequest(model, stream, includeUsage, body)

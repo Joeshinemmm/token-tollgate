@@ -150,15 +150,15 @@ class UsageQueries(private val client: DatabaseClient) {
 		outputTokens = row.int("output_tokens"),
 		cost = row.get("cost", BigDecimal::class.java),
 		usageSource = requireNotNull(row.get("usage_source", String::class.java)),
-		ttftMs = row.get("ttft_ms", Integer::class.java)?.toInt(),
+		ttftMs = row.get("ttft_ms", Int::class.javaObjectType),
 		durationMs = row.int("duration_ms"),
 		httpStatus = row.int("http_status"),
-		streamed = requireNotNull(row.get("streamed", java.lang.Boolean::class.java)).booleanValue(),
+		streamed = requireNotNull(row.get("streamed", Boolean::class.javaObjectType)),
 		outcome = requireNotNull(row.get("outcome", String::class.java)),
 		errorType = row.get("error_type", String::class.java),
 	)
 
-	private fun Readable.long(name: String): Long = requireNotNull(get(name, java.lang.Long::class.java)).toLong()
+	private fun Readable.long(name: String): Long = requireNotNull(get(name, Long::class.javaObjectType))
 
-	private fun Readable.int(name: String): Int = requireNotNull(get(name, Integer::class.java)).toInt()
+	private fun Readable.int(name: String): Int = requireNotNull(get(name, Int::class.javaObjectType))
 }

@@ -2,6 +2,7 @@ package fakeprovider.openai
 
 import fakeprovider.json
 import fakeprovider.openAiBody
+import fakeprovider.postJson
 import fakeprovider.readSse
 import fakeprovider.text.FakeText
 import org.junit.jupiter.api.Test
@@ -35,7 +36,7 @@ class OpenAiFakeApiTest {
 
 	private val path = OpenAiFakeController.PATH
 
-	private fun post(body: Any) = client.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+	private fun post(body: Any) = client.postJson(path, body).exchange()
 
 	@Test
 	fun `completion reports the directed usage in the documented shape`() {

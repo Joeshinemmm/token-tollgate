@@ -22,24 +22,24 @@ class StreamScriptTest {
 	)
 
 	@Test
-	fun `a normal stream is head, content, tail`() = runBlocking {
+	fun `a normal stream is head, content, tail`() = runBlocking<Unit> {
 		assertEquals(listOf("head", "content0", "content1", "content2", "tail1", "tail2"), frames(directive()).toList())
 	}
 
 	@Test
-	fun `streamerr replaces the rest of the stream with the error frame`() = runBlocking {
+	fun `streamerr replaces the rest of the stream with the error frame`() = runBlocking<Unit> {
 		assertEquals(listOf("head", "content0", "content1", "error"), frames(directive(streamErrorAfter = 2)).toList())
 	}
 
 	@Test
-	fun `abort raises after the given chunk so nothing more is written`() = runBlocking {
+	fun `abort raises after the given chunk so nothing more is written`() = runBlocking<Unit> {
 		val seen = mutableListOf<String>()
 		assertThrows<StreamAbortedException> { frames(directive(abortAfter = 2)).collect { seen.add(it) } }
 		assertEquals(listOf("head", "content0", "content1"), seen)
 	}
 
 	@Test
-	fun `abort and streamerr beyond the output count have no effect`() = runBlocking {
+	fun `abort and streamerr beyond the output count have no effect`() = runBlocking<Unit> {
 		assertEquals(6, frames(directive(abortAfter = 9)).toList().size)
 		assertEquals(6, frames(directive(streamErrorAfter = 9)).toList().size)
 	}

@@ -3,6 +3,7 @@ package fakeprovider.anthropic
 import fakeprovider.anthropicBody
 import fakeprovider.error.FakeErrorHandler.Companion.REQUEST_ID_HEADER
 import fakeprovider.json
+import fakeprovider.postJson
 import fakeprovider.readSse
 import fakeprovider.sseEvent
 import fakeprovider.text.FakeText
@@ -37,7 +38,7 @@ class AnthropicFakeApiTest {
 
 	private val path = AnthropicFakeController.PATH
 
-	private fun post(body: Any) = client.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+	private fun post(body: Any) = client.postJson(path, body).exchange()
 
 	@Test
 	fun `message reports usage with cache reads outside input_tokens`() {

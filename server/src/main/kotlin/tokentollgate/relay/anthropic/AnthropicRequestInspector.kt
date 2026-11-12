@@ -2,8 +2,8 @@ package tokentollgate.relay.anthropic
 
 import org.springframework.stereotype.Component
 import tokentollgate.relay.InspectedRequest
-import tokentollgate.relay.InvalidRelayRequestException
-import tools.jackson.core.JacksonException
+import tokentollgate.relay.readRequestObject
+import tokentollgate.relay.requireModel
 import tools.jackson.databind.ObjectMapper
 
 /**
@@ -15,14 +15,8 @@ import tools.jackson.databind.ObjectMapper
 class AnthropicRequestInspector(private val mapper: ObjectMapper) {
 
 	fun inspect(body: ByteArray): InspectedRequest {
-		val root = try {
-			mapper.readTree(body)
-		} catch (e: JacksonException) {
-			throw InvalidRelayRequestException("Request body must be valid JSON")
-		}
-		if (root == null || !root.isObject) throw InvalidRelayRequestException("Request body must be a JSON object")
-		val model = root.path("model").let { if (it.isString) it.stringValue().trim() else "" }
-		if (model.isEmpty()) throw InvalidRelayRequestException("model: Field required", param = "model")
+		val root = readRequestObject(mapper, body)
+		val model = requireModel(root, "model: Field required")
 		return InspectedRequest(model, stream = root.path("stream").asBoolean(false), includeUsage = false, upstreamBody = body)
 	}
 }

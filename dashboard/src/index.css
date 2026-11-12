@@ -41,7 +41,6 @@ input[type='checkbox'] {
 
 /* Numbers line up in columns. */
 .num {
-  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
@@ -122,11 +121,6 @@ input[type='checkbox'] {
   box-shadow: var(--shadow-key-press);
 }
 
-.btn:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
-
 .btn:disabled,
 .btn[aria-disabled='true'] {
   opacity: 0.55;
@@ -192,11 +186,6 @@ input[type='checkbox'] {
   transform: none;
   box-shadow: none;
   color: var(--color-accent-deep);
-}
-
-.btn-link:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
 }
 
 /* A link whose text a machine wrote keeps the mono face that `font: inherit` would otherwise reset. */
@@ -323,11 +312,6 @@ input[type='checkbox'] {
 
 .alert-dismiss:active {
   transform: translateY(1px);
-}
-
-.alert-dismiss:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
 }
 
 /* Status is a word in its color, never a filled chip. */
@@ -890,7 +874,6 @@ input[type='checkbox'] {
 
 /* Chosen reads the same everywhere: the accent wash under accent ink, as on the rail's current screen. */
 .segmented button[aria-selected='true'] {
-  border-color: var(--color-rule-2);
   background: var(--color-accent-wash);
   color: var(--color-accent-deep);
 }

@@ -1,10 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { UsageRecord } from '../../api/types'
-import { TOKEN_STORAGE_KEY } from '../../auth/AuthContext'
-import { AuthProvider } from '../../auth/AuthProvider'
-import { fakeAdminApi, reply, type FakeAdminApi, type RecordedCall } from '../../test/fakeApi'
+import { fakeAdminApi, query, reply, type FakeAdminApi } from '../../test/fakeApi'
+import { renderWithAuth } from '../../test/renderWithAuth'
 import { RequestsPage } from './RequestsPage'
 
 function record(partial: Partial<UsageRecord> & Pick<UsageRecord, 'id'>): UsageRecord {
@@ -38,17 +37,8 @@ function record(partial: Partial<UsageRecord> & Pick<UsageRecord, 'id'>): UsageR
 const FIRST_PAGE = [record({ id: 42 }), record({ id: 41, outcome: 'upstream_error', httpStatus: 502, cost: null, usageSource: 'none', ttftMs: null, streamed: false, errorType: 'http_500', tag: null })]
 const SECOND_PAGE = [record({ id: 40, modelRequested: 'fake-large', modelServed: 'fake-large' })]
 
-function query(call: RecordedCall): URLSearchParams {
-  return new URLSearchParams(call.path.split('?')[1] ?? '')
-}
-
 function renderRequests() {
-  window.sessionStorage.setItem(TOKEN_STORAGE_KEY, 'test-token')
-  return render(
-    <AuthProvider>
-      <RequestsPage />
-    </AuthProvider>,
-  )
+  return renderWithAuth(<RequestsPage />)
 }
 
 describe('RequestsPage', () => {

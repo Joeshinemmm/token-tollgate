@@ -1,7 +1,5 @@
 package fakeprovider.error
 
-import fakeprovider.common.Ids
-
 /** Which wire format the client is speaking, decided by the path so that it also works under a mount prefix. */
 enum class Protocol {
 	OPENAI, ANTHROPIC;
@@ -21,7 +19,7 @@ class InvalidRequestException(message: String, val param: String? = null) : Runt
  */
 object FakeErrors {
 
-	fun body(protocol: Protocol, status: Int, message: String? = null, param: String? = null, requestId: String = Ids.request()): Map<String, Any?> =
+	fun body(protocol: Protocol, status: Int, message: String? = null, param: String? = null, requestId: String): Map<String, Any?> =
 		when (protocol) {
 			Protocol.OPENAI -> openAi(status, message ?: openAiMessage(status), param)
 			Protocol.ANTHROPIC -> anthropic(status, message ?: anthropicMessage(status), requestId)
@@ -32,7 +30,7 @@ object FakeErrors {
 		return mapOf("error" to linkedMapOf("message" to message, "type" to type, "param" to param, "code" to code))
 	}
 
-	fun anthropic(status: Int, message: String, requestId: String = Ids.request()): Map<String, Any?> =
+	fun anthropic(status: Int, message: String, requestId: String): Map<String, Any?> =
 		linkedMapOf("type" to "error", "error" to linkedMapOf("type" to anthropicType(status), "message" to message), "request_id" to requestId)
 
 	/** Documented: 400, 429 (type only), 503. Our own: 401, 403, 404, other 4xx and 5xx. */

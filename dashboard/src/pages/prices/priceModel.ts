@@ -1,4 +1,5 @@
 import type { Price, UpsertPriceInput } from '../../api/types'
+import { ISO_DATE } from '../../usage/period'
 
 export interface PriceFormValues {
   provider: string
@@ -12,7 +13,6 @@ export interface PriceFormValues {
 export type PriceFormErrors = Partial<Record<keyof PriceFormValues, string>>
 
 const RATE = /^\d+(\.\d{1,8})?$/
-const DATE = /^\d{4}-\d{2}-\d{2}$/
 
 export const REQUIRED_MESSAGE = '필수 입력입니다.'
 export const RATE_MESSAGE = '0 이상의 숫자를 소수 8자리까지 입력하세요.'
@@ -31,7 +31,7 @@ export function validatePriceForm(values: PriceFormValues): { errors: PriceFormE
   else if (!RATE.test(values.outputPerMtok.trim())) errors.outputPerMtok = RATE_MESSAGE
   if (values.cachedInputPerMtok.trim() && !RATE.test(values.cachedInputPerMtok.trim())) errors.cachedInputPerMtok = RATE_MESSAGE
   if (!values.effectiveFrom.trim()) errors.effectiveFrom = REQUIRED_MESSAGE
-  else if (!DATE.test(values.effectiveFrom.trim())) errors.effectiveFrom = DATE_MESSAGE
+  else if (!ISO_DATE.test(values.effectiveFrom.trim())) errors.effectiveFrom = DATE_MESSAGE
   if (Object.keys(errors).length > 0) return { errors, input: null }
   return {
     errors,

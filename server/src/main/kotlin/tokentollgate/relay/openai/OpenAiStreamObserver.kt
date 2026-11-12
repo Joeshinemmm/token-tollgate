@@ -3,6 +3,7 @@ package tokentollgate.relay.openai
 import tokentollgate.pricing.TokenUsage
 import tokentollgate.relay.SseFrame
 import tokentollgate.relay.StreamObserver
+import tokentollgate.relay.stringOrNull
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
@@ -43,10 +44,10 @@ class OpenAiStreamObserver(private val mapper: ObjectMapper, private val forward
 		val error = node.path("error")
 		if (error.isObject) {
 			sawError = true
-			errorType = error.path("type").let { if (it.isString) it.stringValue() else null }
+			errorType = error.path("type").stringOrNull()
 			return true
 		}
-		if (model == null) node.path("model").let { if (it.isString) model = it.stringValue() }
+		if (model == null) model = node.path("model").stringOrNull()
 
 		val choices = node.path("choices")
 		val usageNode = node.path("usage")

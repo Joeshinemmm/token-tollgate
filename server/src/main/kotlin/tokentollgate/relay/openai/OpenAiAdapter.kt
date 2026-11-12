@@ -9,8 +9,8 @@ import tokentollgate.relay.InspectedRequest
 import tokentollgate.relay.PlainOutcome
 import tokentollgate.relay.ProtocolAdapter
 import tokentollgate.relay.StreamObserver
+import tokentollgate.relay.parsePlainOutcome
 import tokentollgate.upstream.ProviderType
-import tools.jackson.core.JacksonException
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 
@@ -25,18 +25,8 @@ class OpenAiAdapter(private val inspector: OpenAiRequestInspector, private val m
 
 	override fun prepareUpstreamHeaders(headers: HttpHeaders) = Unit
 
-	override fun parsePlain(status: HttpStatusCode, body: ByteArray): PlainOutcome {
-		val node = try {
-			mapper.readTree(body)
-		} catch (e: JacksonException) {
-			null
-		}
-		if (node == null || !node.isObject) return PlainOutcome(null, null, null)
-		val model = node.path("model").let { if (it.isString) it.stringValue() else null }
-		if (status.is2xxSuccessful) return PlainOutcome(model, OpenAiUsageParser.parse(node.path("usage")), null)
-		val errorType = node.path("error").path("type").let { if (it.isString) it.stringValue() else null }
-		return PlainOutcome(model, null, errorType)
-	}
+	override fun parsePlain(status: HttpStatusCode, body: ByteArray): PlainOutcome =
+		parsePlainOutcome(mapper, status, body, OpenAiUsageParser::parse)
 
 	override fun streamObserver(inspected: InspectedRequest): StreamObserver =
 		OpenAiStreamObserver(mapper, forwardUsageChunk = inspected.includeUsage)

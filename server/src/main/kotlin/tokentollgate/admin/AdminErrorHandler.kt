@@ -17,8 +17,12 @@ class AdminErrorHandler {
 	@ExceptionHandler(NotFoundException::class)
 	fun notFound(ex: NotFoundException) = error(HttpStatus.NOT_FOUND, "not_found", ex.message)
 
-	@ExceptionHandler(ConflictException::class, DataIntegrityViolationException::class)
-	fun conflict(ex: Exception) = error(HttpStatus.CONFLICT, "conflict", (ex as? ConflictException)?.message ?: "Conflicts with existing data")
+	@ExceptionHandler(ConflictException::class)
+	fun conflict(ex: ConflictException) = error(HttpStatus.CONFLICT, "conflict", ex.message ?: CONFLICT_FALLBACK_MESSAGE)
+
+	@ExceptionHandler(DataIntegrityViolationException::class)
+	fun dataIntegrityViolation(ex: DataIntegrityViolationException) =
+		error(HttpStatus.CONFLICT, "conflict", CONFLICT_FALLBACK_MESSAGE)
 
 	@ExceptionHandler(BadRequestException::class)
 	fun badRequest(ex: BadRequestException) = error(HttpStatus.BAD_REQUEST, "bad_request", ex.message)
@@ -28,4 +32,8 @@ class AdminErrorHandler {
 
 	private fun error(status: HttpStatus, code: String, message: String?): ResponseEntity<AdminError> =
 		ResponseEntity.status(status).body(AdminError(AdminErrorBody(code, message ?: status.reasonPhrase)))
+
+	private companion object {
+		const val CONFLICT_FALLBACK_MESSAGE = "Conflicts with existing data"
+	}
 }

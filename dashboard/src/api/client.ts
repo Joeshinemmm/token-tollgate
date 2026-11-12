@@ -29,7 +29,6 @@ export interface ApiResponse<T> {
 }
 
 export interface Client {
-  send<T>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>>
   get<T>(path: string): Promise<T>
   post<T>(path: string, body: unknown): Promise<T>
   put<T>(path: string, body: unknown): Promise<ApiResponse<T>>
@@ -65,7 +64,6 @@ export function createClient(options: ClientOptions): Client {
   }
 
   return {
-    send,
     get: async <T,>(path: string) => (await send<T>('GET', path)).data,
     post: async <T,>(path: string, body: unknown) => (await send<T>('POST', path, body)).data,
     put: <T,>(path: string, body: unknown) => send<T>('PUT', path, body),

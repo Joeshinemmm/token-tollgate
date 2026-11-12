@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { errorMessage } from '../../api/client'
-import type { Project, Provider, UsageGroup, UsageQueryParams, UsageSummary } from '../../api/types'
+import type { Project, Provider, UsageGroup, UsageMetrics, UsageQueryParams, UsageSummary } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert } from '../../components/Alert'
 import { Segmented } from '../../components/Segmented'
@@ -8,19 +8,16 @@ import { StatTile } from '../../components/StatTile'
 import { formatCount, formatUsd } from '../../format'
 import { useHashRoute } from '../../router/useHashRoute'
 import { UsageFilterBar } from '../../usage/UsageFilterBar'
-import { parseFilters, serializeFilters, type UsageFilters } from '../../usage/filters'
+import { serializeFilters, type UsageFilters } from '../../usage/filters'
 import { METRICS, type Metric } from '../../usage/metrics'
-import { browserTimeZone, customRangeError, fillDays, presetWindow, type DayPoint } from '../../usage/period'
-import { BreakdownTable, type Breakdown } from './BreakdownTable'
+import { fillDays, type DayPoint } from '../../usage/period'
+import { usageQuery } from '../../usage/query'
+import { useUsageFilters } from '../../usage/useUsageFilters'
+import { BreakdownTable } from './BreakdownTable'
+import { BREAKDOWNS, type Breakdown } from './breakdowns'
 
 /** Recharts is only needed here, so it loads as its own chunk when the overview first renders. */
 const DailyChart = lazy(() => import('./DailyChart').then((module) => ({ default: module.DailyChart })))
-
-const BREAKDOWNS: readonly { value: Breakdown; label: string }[] = [
-  { value: 'project', label: '프로젝트' },
-  { value: 'model', label: '모델' },
-  { value: 'tag', label: '태그' },
-]
 
 interface DailyResult {
   key: string
@@ -36,11 +33,7 @@ interface BreakdownResult {
 export function OverviewPage() {
   const { api } = useAuth()
   const [{ search }, navigate] = useHashRoute()
-  const filters = useMemo(() => parseFilters(search), [search])
-  const range = useMemo(() => presetWindow(filters), [filters])
-  const rangeUntouched = filters.range === 'custom' && !filters.from && !filters.to
-  const rangeError = filters.range === 'custom' && !rangeUntouched ? customRangeError(filters.from, filters.to) : null
-  const timeZone = useMemo(() => browserTimeZone(), [])
+  const { filters, range, rangeUntouched, rangeError, timeZone } = useUsageFilters(search)
 
   const [projects, setProjects] = useState<Project[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
@@ -51,20 +44,7 @@ export function OverviewPage() {
   const [groups, setGroups] = useState<BreakdownResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const baseParams = useMemo<UsageQueryParams | null>(
-    () =>
-      range
-        ? {
-            from: range.from,
-            to: range.to,
-            tz: timeZone,
-            projectId: filters.projectId || undefined,
-            provider: filters.provider || undefined,
-            tag: filters.tag || undefined,
-          }
-        : null,
-    [range, timeZone, filters],
-  )
+  const baseParams = useMemo<UsageQueryParams | null>(() => (range ? usageQuery(range, timeZone, filters) : null), [range, timeZone, filters])
   const dailyKey = JSON.stringify({ ...baseParams, groupBy: 'day' })
   const breakdownKey = JSON.stringify({ ...baseParams, groupBy: breakdown })
 
@@ -122,11 +102,18 @@ export function OverviewPage() {
 
   const openRequests = (group: UsageGroup) => {
     const next: UsageFilters = { ...filters }
-    if (breakdown === 'project') next.projectId = group.key ?? ''
-    else if (breakdown === 'model') {
-      next.model = group.key ?? ''
-      next.provider = group.provider ?? next.provider
-    } else next.tag = group.key ?? ''
+    switch (breakdown) {
+      case 'project':
+        next.projectId = group.key ?? ''
+        break
+      case 'model':
+        next.model = group.key ?? ''
+        next.provider = group.provider ?? next.provider
+        break
+      case 'tag':
+        next.tag = group.key ?? ''
+        break
+    }
     navigate('requests', serializeFilters(next))
   }
 
@@ -134,12 +121,7 @@ export function OverviewPage() {
   const dailyStale = daily !== null && daily.key !== dailyKey
   const groupsStale = groups !== null && groups.key !== breakdownKey
   const failed = totals ? totals.requests - totals.okRequests : 0
-  const warning =
-    totals && (totals.priceMissingRequests > 0 || totals.usageUnknownRequests > 0)
-      ? [totals.priceMissingRequests > 0 ? `단가 없음 ${formatCount(totals.priceMissingRequests)}건` : null, totals.usageUnknownRequests > 0 ? `사용량 모름 ${formatCount(totals.usageUnknownRequests)}건` : null]
-          .filter(Boolean)
-          .join(' · ')
-      : null
+  const warning = totals ? countWarning(totals) : null
 
   return (
     <div className="stack">
@@ -199,4 +181,12 @@ export function OverviewPage() {
       </section>
     </div>
   )
+}
+
+/** The requests the cost leaves out or cannot vouch for, or null when there are none. */
+function countWarning(totals: UsageMetrics): string | null {
+  const parts: string[] = []
+  if (totals.priceMissingRequests > 0) parts.push(`단가 없음 ${formatCount(totals.priceMissingRequests)}건`)
+  if (totals.usageUnknownRequests > 0) parts.push(`사용량 모름 ${formatCount(totals.usageUnknownRequests)}건`)
+  return parts.length > 0 ? parts.join(' · ') : null
 }

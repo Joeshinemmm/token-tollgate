@@ -1,10 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Project, VirtualKey } from '../../api/types'
-import { TOKEN_STORAGE_KEY } from '../../auth/AuthContext'
-import { AuthProvider } from '../../auth/AuthProvider'
 import { fakeAdminApi, reply, type FakeAdminApi } from '../../test/fakeApi'
+import { renderWithAuth } from '../../test/renderWithAuth'
 import { KeysPage } from './KeysPage'
 
 const PROJECTS: Project[] = [
@@ -18,12 +17,7 @@ const KEYS: VirtualKey[] = [
 ]
 
 function renderKeysPage() {
-  window.sessionStorage.setItem(TOKEN_STORAGE_KEY, 'test-token')
-  return render(
-    <AuthProvider>
-      <KeysPage />
-    </AuthProvider>,
-  )
+  return renderWithAuth(<KeysPage />)
 }
 
 describe('KeysPage', () => {

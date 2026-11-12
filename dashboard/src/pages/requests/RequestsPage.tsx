@@ -5,9 +5,11 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert } from '../../components/Alert'
 import { formatCount } from '../../format'
 import { useHashRoute } from '../../router/useHashRoute'
+import { toggled } from '../../updates'
 import { UsageFilterBar } from '../../usage/UsageFilterBar'
-import { parseFilters, serializeFilters, type UsageFilters } from '../../usage/filters'
-import { browserTimeZone, customRangeError, presetWindow } from '../../usage/period'
+import { serializeFilters, type UsageFilters } from '../../usage/filters'
+import { usageQuery } from '../../usage/query'
+import { useUsageFilters } from '../../usage/useUsageFilters'
 import { RequestTable } from './RequestTable'
 
 const PAGE_SIZE = 50
@@ -21,11 +23,7 @@ interface Page {
 export function RequestsPage() {
   const { api } = useAuth()
   const [{ search }, navigate] = useHashRoute()
-  const filters = useMemo(() => parseFilters(search), [search])
-  const range = useMemo(() => presetWindow(filters), [filters])
-  const rangeUntouched = filters.range === 'custom' && !filters.from && !filters.to
-  const rangeError = filters.range === 'custom' && !rangeUntouched ? customRangeError(filters.from, filters.to) : null
-  const timeZone = useMemo(() => browserTimeZone(), [])
+  const { filters, range, rangeUntouched, rangeError, timeZone } = useUsageFilters(search)
 
   const [projects, setProjects] = useState<Project[]>([])
   const [providers, setProviders] = useState<Provider[]>([])
@@ -38,12 +36,7 @@ export function RequestsPage() {
     () =>
       range
         ? {
-            from: range.from,
-            to: range.to,
-            tz: timeZone,
-            projectId: filters.projectId || undefined,
-            provider: filters.provider || undefined,
-            tag: filters.tag || undefined,
+            ...usageQuery(range, timeZone, filters),
             model: filters.model || undefined,
             outcome: filters.outcome || undefined,
             limit: PAGE_SIZE,
@@ -100,13 +93,7 @@ export function RequestsPage() {
     }
   }
 
-  const toggle = (id: number) =>
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const toggle = (id: number) => setExpanded((current) => toggled(current, id))
 
   const applyFilters = (next: UsageFilters) => navigate('requests', serializeFilters(next))
   const stale = page !== null && page.key !== key

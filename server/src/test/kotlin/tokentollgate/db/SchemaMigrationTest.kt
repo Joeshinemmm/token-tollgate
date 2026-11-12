@@ -16,7 +16,7 @@ class SchemaMigrationTest {
 	lateinit var db: DatabaseClient
 
 	@Test
-	fun `flyway applied exactly one successful migration`() = runBlocking {
+	fun `flyway applied exactly one successful migration`() = runBlocking<Unit> {
 		val applied = db.sql("SELECT count(*) AS n FROM flyway_schema_history WHERE success")
 			.map { row -> (row.get("n") as Number).toLong() }
 			.one()
@@ -25,7 +25,7 @@ class SchemaMigrationTest {
 	}
 
 	@Test
-	fun `all four tables exist`() = runBlocking {
+	fun `all four tables exist`() = runBlocking<Unit> {
 		val tables = db.sql(
 			"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
 		)

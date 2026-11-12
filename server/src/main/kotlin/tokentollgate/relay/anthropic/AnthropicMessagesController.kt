@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import tokentollgate.gateway.ProtocolErrorWriter
 import tokentollgate.relay.RelayEngine
 import tokentollgate.security.AuthenticatedKey
 
@@ -25,6 +26,6 @@ class AnthropicMessagesController(private val engine: RelayEngine, private val a
 	}
 
 	companion object {
-		const val PATH = "/v1/messages"
+		const val PATH = ProtocolErrorWriter.ANTHROPIC_PATH
 	}
 }

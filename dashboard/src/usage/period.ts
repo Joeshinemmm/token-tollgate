@@ -34,7 +34,7 @@ export interface UsageWindow {
   to: string
 }
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/
+export const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 export const RANGE_INCOMPLETE_MESSAGE = '시작일과 종료일을 입력하세요.'
 export const RANGE_ORDER_MESSAGE = '시작일은 종료일보다 앞서거나 같아야 합니다.'
@@ -42,7 +42,7 @@ export const RANGE_TOO_LONG_MESSAGE = `기간은 ${MAX_RANGE_DAYS}일 이하여�
 
 /** Mirrors the server's window rules for a custom range whose both ends are inclusive dates. */
 export function customRangeError(from: string, to: string): string | null {
-  if (!DATE.test(from) || !DATE.test(to)) return RANGE_INCOMPLETE_MESSAGE
+  if (!ISO_DATE.test(from) || !ISO_DATE.test(to)) return RANGE_INCOMPLETE_MESSAGE
   if (from > to) return RANGE_ORDER_MESSAGE
   if (daysBetween(from, to) + 1 > MAX_RANGE_DAYS) return RANGE_TOO_LONG_MESSAGE
   return null

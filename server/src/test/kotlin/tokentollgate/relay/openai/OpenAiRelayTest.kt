@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.MediaType
 import org.springframework.test.web.reactive.server.WebTestClient
+import tokentollgate.FakeUpstreamInitializer
 import tokentollgate.IntegrationTest
 import tokentollgate.awaitRecord
 import tokentollgate.chatBody
@@ -23,6 +24,7 @@ import tokentollgate.issueKey
 import tokentollgate.json
 import tokentollgate.readSse
 import tokentollgate.relay.HeaderRules
+import tokentollgate.requestIdOf
 import tokentollgate.withKey
 import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
@@ -59,11 +61,8 @@ class OpenAiRelayTest {
 		.also { if (tag != null) it.header("X-Tollgate-Tag", tag) }
 		.contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
 
-	private fun requestIdOf(result: WebTestClient.BodyContentSpec): UUID =
-		UUID.fromString(result.returnResult().responseHeaders.getFirst(HeaderRules.REQUEST_ID_HEADER))
-
 	@Test
-	fun `plain response is relayed unchanged and recorded with cost`() = runBlocking {
+	fun `plain response is relayed unchanged and recorded with cost`() = runBlocking<Unit> {
 		val body = post(chatBody("fake-relay:in=120,cached=20,out=8"), tag = "relay-test")
 			.expectStatus().isOk
 			.expectHeader().contentTypeCompatibleWith(MediaType.APPLICATION_JSON)
@@ -97,7 +96,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `include_usage on a plain request changes nothing`() = runBlocking {
+	fun `include_usage on a plain request changes nothing`() = runBlocking<Unit> {
 		val body = post(chatBody("fake-relay:in=120,cached=20,out=8", includeUsage = true))
 			.expectStatus().isOk
 			.expectBody().jsonPath("$.usage.completion_tokens").isEqualTo(8)
@@ -107,7 +106,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `stream without include_usage hides the usage chunk but records it`() = runBlocking {
+	fun `stream without include_usage hides the usage chunk but records it`() = runBlocking<Unit> {
 		val result = readSse(port, OpenAiChatController.PATH, key, chatBody("fake-relay:in=120,cached=20,out=8,ttft=100", stream = true))
 
 		assertEquals(200, result.status?.value())
@@ -131,11 +130,11 @@ class OpenAiRelayTest {
 		assertTrue(record.streamed)
 		assertEquals(Outcome.OK, record.outcome)
 		assertNotNull(record.ttftMs)
-		assertTrue(record.ttftMs!! >= 100, "ttft was ${record.ttftMs}")
+		assertTrue(record.ttftMs >= 100, "ttft was ${record.ttftMs}")
 	}
 
 	@Test
-	fun `stream with include_usage forwards the usage chunk`() = runBlocking {
+	fun `stream with include_usage forwards the usage chunk`() = runBlocking<Unit> {
 		val result = readSse(port, OpenAiChatController.PATH, key, chatBody("fake-relay:in=50,out=3", stream = true, includeUsage = true))
 
 		assertNull(result.error)
@@ -153,7 +152,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `an upstream error status and body are passed through and recorded`() = runBlocking {
+	fun `an upstream error status and body are passed through and recorded`() = runBlocking<Unit> {
 		val body = post(chatBody("fake-relay:err=429"))
 			.expectStatus().isEqualTo(429)
 			.expectBody()
@@ -169,7 +168,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `an upstream stream cut mid-way ends with a gateway error frame`() = runBlocking {
+	fun `an upstream stream cut mid-way ends with a gateway error frame`() = runBlocking<Unit> {
 		val result = readSse(port, OpenAiChatController.PATH, key, chatBody("fake-relay:out=5,abort=2", stream = true))
 
 		assertEquals(200, result.status?.value())
@@ -189,7 +188,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `an upstream error frame is forwarded and recorded`() = runBlocking {
+	fun `an upstream error frame is forwarded and recorded`() = runBlocking<Unit> {
 		val result = readSse(port, OpenAiChatController.PATH, key, chatBody("fake-relay:out=5,streamerr=2", stream = true))
 
 		assertNull(result.error)
@@ -204,7 +203,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `a slow upstream is a 504 and a timeout record`() = runBlocking {
+	fun `a slow upstream is a 504 and a timeout record`() = runBlocking<Unit> {
 		val body = post(chatBody("slow-model:ttft=2000,out=1"))
 			.expectStatus().isEqualTo(504)
 			.expectBody()
@@ -218,7 +217,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `an unknown model is a 404 recorded without a provider`() = runBlocking {
+	fun `an unknown model is a 404 recorded without a provider`() = runBlocking<Unit> {
 		val body = post(chatBody("unknown-model"))
 			.expectStatus().isNotFound
 			.expectBody()
@@ -232,12 +231,12 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `a provider without its key is a 503 naming the variable`() = runBlocking {
+	fun `a provider without its key is a 503 naming the variable`() = runBlocking<Unit> {
 		val body = post(chatBody("gpt-6-astra"))
 			.expectStatus().isEqualTo(503)
 			.expectBody()
 			.jsonPath("$.error.code").isEqualTo("provider_disabled")
-			.jsonPath("$.error.message").value<String> { assertTrue(it.contains("TOLLGATE_TEST_KEY_THAT_IS_NEVER_SET")) }
+			.jsonPath("$.error.message").value<String> { assertTrue(it.contains(FakeUpstreamInitializer.NEVER_SET)) }
 		val record = records.awaitRecord(requestIdOf(body))
 		assertEquals("openai", record.provider)
 		assertEquals(Outcome.GATEWAY_ERROR, record.outcome)
@@ -245,7 +244,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `the virtual key never reaches the upstream`() = runBlocking {
+	fun `the virtual key never reaches the upstream`() = runBlocking<Unit> {
 		val body = post(chatBody("nokey-model"))
 			.expectStatus().isUnauthorized
 			.expectBody()
@@ -258,7 +257,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `a client that disconnects mid-stream is recorded as client_abort`() = runBlocking {
+	fun `a client that disconnects mid-stream is recorded as client_abort`() = runBlocking<Unit> {
 		val result = readSse(port, OpenAiChatController.PATH, key, chatBody("fake-relay:out=30,gap=200", stream = true), takeFrames = 2)
 
 		assertEquals(200, result.status?.value())
@@ -269,7 +268,7 @@ class OpenAiRelayTest {
 	}
 
 	@Test
-	fun `a request without a model is refused before anything is recorded`() = runBlocking {
+	fun `a request without a model is refused before anything is recorded`() = runBlocking<Unit> {
 		val body = post(mapOf("messages" to listOf(mapOf("role" to "user", "content" to "hi"))))
 			.expectStatus().isBadRequest
 			.expectBody()

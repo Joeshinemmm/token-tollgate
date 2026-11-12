@@ -24,7 +24,7 @@ class VirtualKeyAdminApiTest {
 	@Autowired lateinit var keys: VirtualKeyRepository
 
 	@Test
-	fun `issuing returns the plaintext once and stores only its hash`() = runBlocking {
+	fun `issuing returns the plaintext once and stores only its hash`() = runBlocking<Unit> {
 		val project = client.createProject()
 		val issued = client.issueKey(project.id, "ci")
 

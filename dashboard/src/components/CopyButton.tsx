@@ -7,9 +7,22 @@ interface CopyButtonProps {
   selectOnFailure?: RefObject<HTMLElement | null>
 }
 
+type CopyState = 'idle' | 'copied' | 'failed'
+
+function buttonText(state: CopyState, label: string): string {
+  switch (state) {
+    case 'copied':
+      return '복사됨'
+    case 'failed':
+      return '복사 실패: 선택된 키를 직접 복사하세요'
+    case 'idle':
+      return label
+  }
+}
+
 /** Copies [text] to the clipboard and says so for two seconds. */
 export function CopyButton({ text, label = '복사', selectOnFailure }: CopyButtonProps) {
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [state, setState] = useState<CopyState>('idle')
 
   useEffect(() => {
     if (state === 'idle') return
@@ -29,7 +42,7 @@ export function CopyButton({ text, label = '복사', selectOnFailure }: CopyButt
 
   return (
     <button type="button" className="btn btn-small" onClick={copy}>
-      {state === 'copied' ? '복사됨' : state === 'failed' ? '복사 실패: 선택된 키를 직접 복사하세요' : label}
+      {buttonText(state, label)}
     </button>
   )
 }
